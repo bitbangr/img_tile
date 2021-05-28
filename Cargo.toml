@@ -1,0 +1,18 @@
+[package]
+name = "img_tile"
+version = "0.1.0"
+authors = ["bitbangr <mgj000@hotmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+image = "0.23.14"
+euclid = "*"
+ego-tree = "*"
+clap = "*"
+printpdf = "0.3.4"
+serde = { version = "1.0.104", features = ["derive"] }
+serde_json = "*"
+itertools = "*"
+regex = "*"

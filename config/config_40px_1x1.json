@@ -1,0 +1,15 @@
+{
+  "tile_colors":"./tile_json/crayola_colors.json",
+  "input":"./images/4x4_16_color_test.png",
+  "output":"./images/output/4x4_cray_15x15.jpg",
+  "output_width":40.0,
+  "output_height":40.0,
+  "aspect_x":1,
+  "aspect_y":1,
+  "tile_size_x":10,
+  "tile_size_y":10,
+  "tile_space_x":0.0,
+  "tile_space_y":0.0,
+  "tiles_per_pane_width":4,
+  "tiles_per_pane_height":4
+}
