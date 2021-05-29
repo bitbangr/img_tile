@@ -57,7 +57,6 @@ fn main() {
     // let output_width_tile_count : usize = (output_width/(tile_size_x + tile_space_x)).round() as usize; // Should account for spacing of tiles
     // let output_height_tile_count : usize = (output_height/(tile_size_y + tile_space_y)).round() as usize;
 
-
     println!("tile size x:{}\ntile size y:{}", tile_size_x, tile_size_y);
     println!("output image width: {} , width tile count: {}\noutput image height: {} , height tile count: {}", output_width,
                                                                                                         output_width_tile_count,
@@ -78,11 +77,14 @@ fn main() {
 
     // TODO - Now that we have all the info lets start processing!
     // divide input image into output_width_tile_count X output_height_tile_count boxes
+    // ***
+    // *** mgj TODO need to figure out what to do if aspect ratio of input image is not the same as output
+    // ***
     // Store these boxes as a vector of Window panes left to right, top to bottom
     // Each window pane consists of tiles - a vector of Box2D co-ords (TopLeft Corner, BottomRight Corner) again stored left to right top to bottom ordered
-    // May add a box color to this as well
-
-    let window: Vec<Vec<Box2D<i32,i32>>> = create_window_panes (input_img_width,
+    //                                    - and and RGB for storing the color of the tile. Defaults to black for newly created window
+    //
+    let mut input_window: Vec<Vec<(Box2D<i32,i32>,modtile::RGB)>> = create_out_panes (input_img_width,
                                                             input_img_height,
                                                             output_width_tile_count,
                                                             output_height_tile_count,
@@ -90,56 +92,35 @@ fn main() {
                                                             tiles_per_pane_height);
 
 
-
-
     println!("************************");
     println!("***** Input Window *****");
     println!("************************\n");
-    println!("number of tiles in first window pane: {:?}", &window[0].len());
-    println!("number of window panes: {:?}", &window.len());
-    println!("number of tiles in first window pane: {:?}", &window[0].len());
+    println!("number of tiles in first window pane: {:?}", &input_window[0].len());
+    println!("number of window panes: {:?}", &input_window.len());
+    println!("number of tiles in first window pane: {:?}", &input_window[0].len());
     println!("************************\n");
     println!("Tile Coords in each window pane");
-    for (i, pane) in window.iter().enumerate() {
+    for (i, pane) in input_window.iter().enumerate() {
         println!("**** Window pane {} ****", i+1);
         for (j, tile_coords) in pane.iter().enumerate(){
             println!("Tile {} Coords: {:?}", j+1, tile_coords);
         }
     }
 
-    // // this holds all the info necesary to build the output image
-    // let output_window: Vec<Vec<Box2D<i32,i32>>> = create_window_panes (output_width,
-    //                                                         output_height,
-    //                                                         output_width_tile_count,
-    //                                                         output_height_tile_count,
-    //                                                         tiles_per_pane_width,
-    //                                                         tiles_per_pane_height);
-
     // this holds all the info necesary to build the output image
-    let output_window: Vec<Vec<(Box2D<i32,i32>,modtile::RGB)>> = create_out_panes (output_width,
+    let mut output_window: Vec<Vec<(Box2D<i32,i32>,modtile::RGB)>> = create_out_panes (output_width,
                                                             output_height,
                                                             output_width_tile_count,
                                                             output_height_tile_count,
                                                             tiles_per_pane_width,
                                                             tiles_per_pane_height);
-
-    // TESTING setting rgb values in 
-    // this holds all the info necesary to build the output image
-    let window: Vec<Vec<(Box2D<i32,i32>,modtile::RGB)>> = create_out_panes (output_width,
-                                                            output_height,
-                                                            output_width_tile_count,
-                                                            output_height_tile_count,
-                                                            tiles_per_pane_width,
-                                                            tiles_per_pane_height);
-
-
 
     println!("************************");
     println!("***** Output Window ****");
     println!("************************\n");
 
     println!("Output - window panes: {:?}", &output_window.len());
-    println!("Output - number of tiles in first window pane: {:?}", &window[0].len());
+    println!("Output - number of tiles in first window pane: {:?}", &input_window[0].len());
     println!("Output Tile Coords in each output window pane");
     println!("************************\n");
     for (i, pane) in output_window.iter().enumerate() {
@@ -149,6 +130,7 @@ fn main() {
             println!("Output Tile {} rgb: {:?}",&j+1, &tile_coords.1);
 
             // mgj todo try to update this RGB value to a new value
+            // works if we use a iter_mut() call above
             // let &tile_coords.1 = modtile::RGB(10,10,10);
         }
     }
@@ -165,9 +147,6 @@ fn main() {
 
     // construct our KD tree with the desired color vec
     let kd_tree = construct_kd_tree(&mut color_vec[..], 3);
-
-    // create the output image
-    let mut out_img : DynamicImage = DynamicImage::new_rgb8(output_width as u32, output_height as u32);
 
 //**********************
 // start cut and paste from img_play
@@ -194,13 +173,13 @@ fn main() {
     //      Output window struct can then be used to
     //         create the output image
     //         create the output pdf instructions doc
-    for (i, pane) in window.iter().enumerate() {
+    for (i, pane) in input_window.iter_mut().enumerate() {
         let mut pane_colours : Vec<(u8,u8,u8)> = Vec::new();
         println!("**** Window pane {} ****", i+1);
-        for (j, tile_coords) in pane.iter().enumerate(){
-            println!("Tile {} Coords: {:?}", j+1, tile_coords);
+        for (j, mut tile) in pane.iter_mut().enumerate(){
+            println!("Tile {}: {:?}", j+1, tile);
 
-            let avg_col = get_avg_col(&input_image_buffer, &tile_coords);
+            let avg_col = get_avg_col(&input_image_buffer, &tile.0);
 
             // get the closes color match
             let color_tup = query_nearest_neighbor(&[avg_col[0],avg_col[1],avg_col[2]], &kd_tree, 3, kd_tree.root()).value();
@@ -215,25 +194,50 @@ fn main() {
 
             pane_colours.push((cm_red.clone(),cm_yellow.clone(),cm_green.clone()));
 
-            let closest_match = Rgb([cm_red,cm_yellow,cm_green]);
+            // let closest_match = Rgb([cm_red,cm_yellow,cm_green]);
 
-            // store the closest match
-            // iterate over the pixels and paint with closest match color
-            for iy in tile_coords.min.y..=tile_coords.max.y{
-                for ix in tile_coords.max.x..=tile_coords.max.x{
-                    // need to figure out the to_rgba call as we don't use it
-                    // println!( "bx.min.x: {} bx.min.y: {} ix: {} iy: {}", bx.min.x,bx.min.y, ix, iy );
-                    out_img.put_pixel(ix as u32, iy as u32, image::Pixel::to_rgba(&closest_match));
+            // store the closest match in the tile
+            tile.1 = modtile::RGB(cm_red.clone(),cm_yellow.clone(),cm_green.clone());
+            println!("Closest Match ---> {:?} \n", tile);
 
-                    // TODO mgj we want to save this color info into some structure that can be passed to build_output_pdf call
-                    // println!( "bx.min.x: {} bx.min.y: {} ix: {} iy: {}", bx.min.x,bx.min.y, ix, iy );
-                }
-            }
         }
         window_pane_colors.push(pane_colours);
     }
 
+
+    // see if we can zip window_pane_colors and window with transform function on window coords`.
+    // let it = window.iter().zip(window_pane_colors.iter());
+    //
+    // for (i, (x, y)) in it.enumerate() {
+    //    println!("w {:#?}: (wpc {:?}, wpc{:?})", i, x, y);
+    // }
+
+    println!("******/n *** Zipped iterator ***\n******/n");
+    println!("input window {:?}", &input_window);
+
+    // see if we can zip window_pane_colors and window with transform function on window coords`.
+    let wit = input_window.iter().zip(output_window.iter_mut());
+    for (i, (ip,op)) in wit.enumerate() {
+       println!("Pane {:?}: \ninput: {:?} \noutput: {:?})", i, ip,op);
+       println!{"\n"};
+
+       let pit = ip.iter().zip(op.iter_mut());
+       for (j, (itp,otp)) in pit.enumerate() {
+          println!("Tile {:?}: \ninput: {:?} \noutput: {:?})", j, itp,otp);
+          println!{"\n"};
+
+          // set the output tile color to be the same as the imput tile color
+          otp.1 = itp.1;
+      }
+    }
+    println!("******/n *** Output Window after Zipped iterator ***\n******/n");
+    println!("output window {:?}", &output_window);
+
+    // create the output image
+    let out_img : DynamicImage = create_output_image(&output_window, output_width, output_height);
+
     // Save the resulting image.  We'll also want to use this to create our ouptput PDF instructions doc
+    // Add proper error handling for image
     let save_path = Path::new(&output);
     println!("save_path {:#?}", &save_path.to_str() );
     out_img.save(save_path).unwrap();
@@ -254,19 +258,33 @@ fn main() {
         };
      }
 
-//*********************
-// end cut and paste from img_play
-//********************
-
     // println!("Window Pane Colors {:#?}", window_pane_colors);
 
-    // see if we can zip window_pane_colors and window with transform function on window coords`.
-    let it = window.iter().zip(window_pane_colors.iter());
+} // end main
 
-    for (i, (x, y)) in it.enumerate() {
-       println!("w {:#?}: (wpc {:?}, wpc{:?})", i, x, y);
+// create the output image
+fn create_output_image(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>, output_width: f64, output_height: f64) -> DynamicImage {
+
+    let mut out_img : DynamicImage = DynamicImage::new_rgb8(output_width as u32, output_height as u32);
+    for (_i, pane) in output_window.iter().enumerate() {
+        for (_j, tile) in pane.iter().enumerate(){
+
+            let cm_r = tile.1.0 as u8;
+            let cm_y = tile.1.1 as u8;
+            let cm_g = tile.1.2 as u8;
+            let tile_color = Rgb([cm_r,cm_y,cm_g]);
+
+            // iterate over the pixels and paint with tile rgb value
+            // look into using Box2D x_range and y_range
+            for iy in tile.0.min.y..=tile.0.max.y{
+                for ix in tile.0.min.x..=tile.0.max.x{
+                    // let tile_color  = Rgb([tile.1.0,tile.1.1,tile.1.2]);
+                    out_img.put_pixel(ix as u32, iy as u32, image::Pixel::to_rgba(&tile_color));
+                }
+            }
+        }
     }
-
+    out_img
 }
 
 fn get_image(input: String) -> Result<DynamicImage,image::ImageError>{
@@ -374,76 +392,8 @@ fn create_out_panes(input_img_width: f64,
                         let p_start : Point2D<i32,i32> = Point2D::new(tile_top_left_x as i32, tile_top_left_y as i32);
                         let p_end : Point2D<i32,i32> = Point2D::new(tile_bot_right_x as i32, tile_bot_right_y as i32);
                         let tile_box = Box2D { min: p_start, max: p_end };
-                        let mut rgb = modtile::RGB(0,0,0);
+                        let rgb = modtile::RGB(0,0,0);
                         pane_grid.push((tile_box,rgb));
-                    }
-                }
-                window_grid.push(pane_grid);
-        }
-    }
-    // return the grid
-    window_grid
-}
-
-
-
-
-fn create_window_panes(input_img_width: f64,
-                    input_img_height: f64,
-                    output_width_tile_count: usize,
-                    output_height_tile_count: usize,
-                    tiles_per_pane_width: usize,
-                    tiles_per_pane_height: usize) -> Vec<Vec<Box2D<i32, i32>>> {
-
-    println!("input_img_width: {:?}", input_img_width);
-    println!("input_img_height: {:?}", input_img_height);
-    println!("output_width_tile_count: {:?}", output_width_tile_count);
-    println!("output_height_tile_count: {:?}", output_height_tile_count);
-    println!("tiles_per_pane_width: {:?}", tiles_per_pane_width);
-    println!("tiles_per_pane_height: {:?}", tiles_per_pane_height);
-
-    let mut window_grid: Vec<Vec<Box2D<i32, i32>>> = Vec::new();
-
-    let window_pane_rows = output_height_tile_count / tiles_per_pane_height;
-    let window_pane_cols = output_width_tile_count / tiles_per_pane_width;
-
-    println!("window_pane_rows: {:?}", &window_pane_rows);
-    println!("window_pane_cols: {:?}", &window_pane_cols);
-
-    // Cannot have fractional pixels so round and convert to usize
-    let img_width_div  = (input_img_width / output_width_tile_count as f64).round() as usize;
-    let img_height_div = (input_img_height / output_height_tile_count as f64).round() as usize;
-
-    // Want to construct a series of Box2D coords for tiles in each of the window panes.
-    // initialise our variables
-    let mut tile_top_left_x;
-    let mut tile_top_left_y;
-    let mut tile_bot_right_x;
-    let mut tile_bot_right_y;
-
-    for pane_row in 0..window_pane_rows {
-        // println!("pane_row: {}", &pane_row);
-        for pane_col in 0..window_pane_cols{
-                // println!("   pane_col: {}", &pane_col);
-                let mut pane_grid: Vec<Box2D<i32, i32>> = Vec::new();
-                for tile_row in 0..tiles_per_pane_height {
-                    // println!("      tile_row: {}", &tile_row);
-                    for tile_col in 0..tiles_per_pane_width{
-                        // println!("         tile_col: {}", &tile_col);
-                        tile_top_left_x = tile_col * img_width_div +  pane_col * tiles_per_pane_width * img_width_div;
-                        tile_top_left_y = tile_row * img_height_div + pane_row * tiles_per_pane_height * img_height_div;
-                        tile_bot_right_x = tile_top_left_x + img_width_div - 1;   // pixel dimensions are zero based so subtract 1
-                        tile_bot_right_y = tile_top_left_y + img_height_div - 1 ; // pixel dimensions are zero based so subtract 1
-
-                        // println!("\t\t tile_top_left_x: {}", & tile_top_left_x);
-                        // println!("\t\t tile_top_left_y: {}", & tile_top_left_y);
-                        // println!("\t\ttile_bot_right_x: {}", & tile_bot_right_x);
-                        // println!("\t\ttile_bot_right_y: {}", & tile_bot_right_y);
-
-                        let p_start : Point2D<i32,i32> = Point2D::new(tile_top_left_x as i32, tile_top_left_y as i32);
-                        let p_end : Point2D<i32,i32> = Point2D::new(tile_bot_right_x as i32, tile_bot_right_y as i32);
-                        let tile_box = Box2D { min: p_start, max: p_end };
-                        pane_grid.push(tile_box);
                     }
                 }
                 window_grid.push(pane_grid);
