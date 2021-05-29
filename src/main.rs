@@ -120,7 +120,7 @@ fn main() {
     println!("************************\n");
 
     println!("Output - window panes: {:?}", &output_window.len());
-    println!("Output - number of tiles in first window pane: {:?}", &input_window[0].len());
+    println!("Output - number of tiles in first window pane: {:?}", &output_window[0].len());
     println!("Output Tile Coords in each output window pane");
     println!("************************\n");
     for (i, pane) in output_window.iter().enumerate() {
@@ -128,10 +128,6 @@ fn main() {
         for (j, tile_coords) in pane.iter().enumerate(){
             println!("Output Tile {} Coords: {:?}", &j+1, &tile_coords.0);
             println!("Output Tile {} rgb: {:?}",&j+1, &tile_coords.1);
-
-            // mgj todo try to update this RGB value to a new value
-            // works if we use a iter_mut() call above
-            // let &tile_coords.1 = modtile::RGB(10,10,10);
         }
     }
     println!("************************\n");
@@ -148,9 +144,6 @@ fn main() {
     // construct our KD tree with the desired color vec
     let kd_tree = construct_kd_tree(&mut color_vec[..], 3);
 
-//**********************
-// start cut and paste from img_play
-//*********************
     // keep count for number of times each color used as a tile
     let mut tile_color_count: HashMap<&Vec<u8>, i32> = HashMap::new();
 
@@ -293,12 +286,9 @@ fn get_image(input: String) -> Result<DynamicImage,image::ImageError>{
     Ok(image::open(image_path)?)
 }
 
-
-
 // this function will take an image, iterate over pixel dimensions defined by
 // pixel_box.min and pixel_box.max and return the average color of all pixels contained
 // using the mean squares method
-// fn get_avg_col(img: &RgbImage, pixel_box :&Box2D<i32,i32>  ) -> String {
 fn get_avg_col(img: &RgbImage, pixel_box :&Box2D<i32,i32>  ) -> Rgb <u8>{
 
     let mut count = 0.0;
