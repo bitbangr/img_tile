@@ -27,7 +27,17 @@ fn main() {
                 .help("config settings for tiling")
                 .takes_value(true)
                 .required(true),
-        ).get_matches();
+        )
+        .arg(
+            Arg::with_name("swatch")
+                .short("s")
+                .long("swatch")
+                .value_name("SWATCH")
+                .help("Used to generate a color swatch pdf")
+                .takes_value(false)
+                .required(false),
+        )
+        .get_matches();
 
     // load all the config settings from JSON file
     let configs : modtile::Config = modtile::load_configs(matches.value_of("config").unwrap());
@@ -99,20 +109,20 @@ fn main() {
                                                             tiles_per_pane_height);
 
 
-    println!("************************");
-    println!("***** Input Window *****");
-    println!("************************\n");
-    println!("number of tiles in first window pane: {:?}", &input_window[0].len());
-    println!("number of window panes: {:?}", &input_window.len());
-    println!("number of tiles in first window pane: {:?}", &input_window[0].len());
-    println!("************************\n");
-    println!("Tile Coords in each window pane");
-    for (i, pane) in input_window.iter().enumerate() {
-        println!("**** Window pane {} ****", i+1);
-        for (j, tile_coords) in pane.iter().enumerate(){
-            println!("Tile {} Coords: {:?}", j+1, tile_coords);
-        }
-    }
+    // println!("************************");
+    // println!("***** Input Window *****");
+    // println!("************************\n");
+    // println!("number of tiles in first window pane: {:?}", &input_window[0].len());
+    // println!("number of window panes: {:?}", &input_window.len());
+    // println!("number of tiles in first window pane: {:?}", &input_window[0].len());
+    // println!("************************\n");
+    // println!("Tile Coords in each window pane");
+    // for (i, pane) in input_window.iter().enumerate() {
+    //     println!("**** Window pane {} ****", i+1);
+    //     for (j, tile_coords) in pane.iter().enumerate(){
+    //         println!("Tile {} Coords: {:?}", j+1, tile_coords);
+    //     }
+    // }
 
     // this holds all the info necesary to build the output image
     let mut output_window: Vec<Vec<(Box2D<i32,i32>,modtile::RGB)>> = create_out_panes (output_width,
@@ -122,29 +132,29 @@ fn main() {
                                                             tiles_per_pane_width,
                                                             tiles_per_pane_height);
 
-    println!("************************");
-    println!("***** Output Window ****");
-    println!("************************\n");
-
-    println!("Output - window panes: {:?}", &output_window.len());
-    println!("Output - number of tiles in first window pane: {:?}", &output_window[0].len());
-    println!("Output Tile Coords in each output window pane");
-    println!("************************\n");
-    for (i, pane) in output_window.iter().enumerate() {
-        println!("**** Output Window pane {} ****", i+1);
-        for (j, tile_coords) in pane.iter().enumerate(){
-            println!("Output Tile {} Coords: {:?}", &j+1, &tile_coords.0);
-            println!("Output Tile {} rgb: {:?}",&j+1, &tile_coords.1);
-        }
-    }
-    println!("************************\n");
-    println!("************************\n");
+    // println!("************************");
+    // println!("***** Output Window ****");
+    // println!("************************\n");
+    //
+    // println!("Output - window panes: {:?}", &output_window.len());
+    // println!("Output - number of tiles in first window pane: {:?}", &output_window[0].len());
+    // println!("Output Tile Coords in each output window pane");
+    // println!("************************\n");
+    // for (i, pane) in output_window.iter().enumerate() {
+    //     println!("**** Output Window pane {} ****", i+1);
+    //     for (j, tile_coords) in pane.iter().enumerate(){
+    //         println!("Output Tile {} Coords: {:?}", &j+1, &tile_coords.0);
+    //         println!("Output Tile {} rgb: {:?}",&j+1, &tile_coords.1);
+    //     }
+    // }
+    // println!("************************\n");
+    // println!("************************\n");
 
     // load the tile colors_path
     let all_colors: modtile::AllColors = modtile::load_all_colors(&tile_colors.to_string().to_owned());
-    for (j, tile_color) in all_colors.colors.iter().enumerate() {
-        println!("tile color:{}, {:?}",j+1, tile_color);
-    }
+    // for (j, tile_color) in all_colors.colors.iter().enumerate() {
+    //     println!("tile color:{}, {:?}",j+1, tile_color);
+    // }
 
     let mut color_vec: Vec<Vec<u8>> = build_color_vec(&all_colors);  // Create a Vector Array of elements of type u8
 
@@ -175,9 +185,9 @@ fn main() {
     //         create the output pdf instructions doc
     for (i, pane) in input_window.iter_mut().enumerate() {
         let mut pane_colours : Vec<(u8,u8,u8)> = Vec::new();
-        println!("**** Window pane {} ****", i+1);
+        // println!("**** Window pane {} ****", i+1);
         for (j, mut tile) in pane.iter_mut().enumerate(){
-            println!("Tile {}: {:?}", j+1, tile);
+            // println!("Tile {}: {:?}", j+1, tile);
 
             let avg_col = get_avg_col(&input_image_buffer, &tile.0);
 
@@ -198,7 +208,7 @@ fn main() {
 
             // store the closest match in the tile
             tile.1 = modtile::RGB(cm_red.clone(),cm_yellow.clone(),cm_green.clone());
-            println!("Closest Match ---> {:?} \n", tile);
+            // println!("Closest Match ---> {:?} \n", tile);
 
         }
         window_pane_colors.push(pane_colours);
@@ -213,25 +223,25 @@ fn main() {
     // }
 
     println!("******/n *** Zipped iterator ***\n******/n");
-    println!("input window {:?}", &input_window);
+    // println!("input window {:?}", &input_window);
 
     // zip input_window and output_window and copy input rgb value to output
     let wit = input_window.iter().zip(output_window.iter_mut());
     for (i, (ip,op)) in wit.enumerate() {
-       println!("Pane {:?}: \ninput: {:?} \noutput: {:?})", i, ip,op);
-       println!{"\n"};
+       // println!("Pane {:?}: \ninput: {:?} \noutput: {:?})", i, ip,op);
+       // println!{"\n"};
 
        let pit = ip.iter().zip(op.iter_mut());
        for (j, (itp,otp)) in pit.enumerate() {
-          println!("Tile {:?}: \ninput: {:?} \noutput: {:?})", j, itp,otp);
-          println!{"\n"};
+          // println!("Tile {:?}: \ninput: {:?} \noutput: {:?})", j, itp,otp);
+          // println!{"\n"};
 
           // set the output tile color to be the same as the imput tile color
           otp.1 = itp.1;
       }
     }
-    println!("******/n *** Output Window after Zipped iterator ***\n******/n");
-    println!("output window {:?}", &output_window);
+    // println!("******/n *** Output Window a fter Zipped iterator ***\n******/n");
+    // println!("output window {:?}", &output_window);
 
     // create the output image
     let out_img : DynamicImage = create_output_image(&output_window, output_width, output_height);
@@ -425,29 +435,29 @@ fn get_max_box(ip_width: f64, ip_height: f64, op_width: f64, op_height: f64) -> 
         panic!("get_max_box() - all supplied dimensions must be greater than 1.0");
     }
 
-    println!("get max box {} {} {} {}", ip_width, ip_height,op_width, op_height);
+    // println!("get max box {} {} {} {}", ip_width, ip_height,op_width, op_height);
 
     if op_width/ip_width > op_height/ip_height {
         let trans_height = &ip_height * (&op_height/&ip_height);
         let trans_width = &ip_width * (op_height/ip_height);
 
-        println!("1 op_width/ip_width > op_height/ip_height");
-        println!("1 trans_width: {:?}, trans_height: {:?}", &trans_width,&trans_height);
+        // println!("1 op_width/ip_width > op_height/ip_height");
+        // println!("1 trans_width: {:?}, trans_height: {:?}", &trans_width,&trans_height);
         (trans_width,trans_height)
 
     } else if op_width/ip_width < op_height/ip_height {
         let trans_height = &ip_height * (op_width/ip_width);
         let trans_width = &ip_width * (op_width/ip_width);
 
-        println!("2 op_width/ip_width < op_height/ip_height");
-        println!("2 trans_width: {:?}, trans_height: {:?}", &trans_width,&trans_height);
+        // println!("2 op_width/ip_width < op_height/ip_height");
+        // println!("2 trans_width: {:?}, trans_height: {:?}", &trans_width,&trans_height);
         (trans_width,trans_height)
     } else
     {
         let trans_height = op_height;
         let trans_width = op_width;
-        println!("3 op_width/ip_width = op_height/ip_height");
-        println!("3 trans_width: {:?}, trans_height: {:?}", trans_width,trans_height);
+        // println!("3 op_width/ip_width = op_height/ip_height");
+        // println!("3 trans_width: {:?}, trans_height: {:?}", trans_width,trans_height);
         (trans_width,trans_height)
     }
 
