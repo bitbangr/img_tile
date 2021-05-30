@@ -48,20 +48,6 @@ fn main() {
     let tiles_per_pane_width =  configs.tiles_per_pane_width;
     let tiles_per_pane_height = configs.tiles_per_pane_height;
 
-    // round to closest integer.
-    // Less than .5 rounds down, More than .5 rounds up
-    // so if less than half a tile it is left out
-    // if more than half a tile it is included
-    let output_width_tile_count : usize = (output_width/(tile_size_x )).round() as usize; // Should account for spacing of tiles
-    let output_height_tile_count : usize = (output_height/(tile_size_y)).round() as usize;
-    // let output_width_tile_count : usize = (output_width/(tile_size_x + tile_space_x)).round() as usize; // Should account for spacing of tiles
-    // let output_height_tile_count : usize = (output_height/(tile_size_y + tile_space_y)).round() as usize;
-
-    println!("tile size x:{}\ntile size y:{}", tile_size_x, tile_size_y);
-    println!("output image width: {} , width tile count: {}\noutput image height: {} , height tile count: {}", output_width,
-                                                                                                        output_width_tile_count,
-                                                                                                        output_height,
-                                                                                                        output_height_tile_count);
 
     // Grab the input image
     // TODO Get some proper error handling here or in function for missing image
@@ -71,6 +57,27 @@ fn main() {
     let input_img_height = img_height as f64;
 
     println!("input image width: {}\ninput image height: {}", &input_img_width,&input_img_height );
+
+    // ********** todo May 28th currently does not handle all cases of bad aspect ratio
+    // determine the largest output box dimensions that will maintain the input image aspect ratio.
+    // and resize the output image accordingly
+    // strange behaviour noted so use with care.  Best to make sure op is some close ratio to input
+    let (output_width, output_height) =  get_max_box(input_img_width, input_img_height , output_width, output_height);
+    println!("output image width: {}\noutput image height: {}", &output_width,&output_height );
+
+    // round to closest integer.
+    // Less than .5 rounds down, More than .5 rounds up
+    // so if less than half a tile it is left out
+    // if more than half a tile it is included
+    let output_width_tile_count : usize = (output_width/(tile_size_x )).round() as usize; // Should account for spacing of tiles
+    let output_height_tile_count : usize = (output_height/(tile_size_y)).round() as usize;
+
+    println!("tile size x:{}\ntile size y:{}", tile_size_x, tile_size_y);
+    println!("output image width: {} , width tile count: {}\noutput image height: {} , height tile count: {}", output_width,
+                                                                                                        output_width_tile_count,
+                                                                                                        output_height,
+                                                                                                        output_height_tile_count);
+
 
     // create the input image buffer for use later
     let input_image_buffer = &input_img.to_rgb8();
@@ -208,7 +215,7 @@ fn main() {
     println!("******/n *** Zipped iterator ***\n******/n");
     println!("input window {:?}", &input_window);
 
-    // see if we can zip window_pane_colors and window with transform function on window coords`.
+    // zip input_window and output_window and copy input rgb value to output
     let wit = input_window.iter().zip(output_window.iter_mut());
     for (i, (ip,op)) in wit.enumerate() {
        println!("Pane {:?}: \ninput: {:?} \noutput: {:?})", i, ip,op);
@@ -271,7 +278,6 @@ fn create_output_image(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>
             // look into using Box2D x_range and y_range
             for iy in tile.0.min.y..=tile.0.max.y{
                 for ix in tile.0.min.x..=tile.0.max.x{
-                    // let tile_color  = Rgb([tile.1.0,tile.1.1,tile.1.2]);
                     out_img.put_pixel(ix as u32, iy as u32, image::Pixel::to_rgba(&tile_color));
                 }
             }
@@ -405,4 +411,44 @@ fn build_color_vec(all_colors: &modtile::AllColors) -> Vec<Vec<u8>> {
 
     // return the color vec
     color_vec
+}
+
+
+// return maximum possible output dimensions (width height) for input box of a given size
+// and desired output dimensions while maintaining aspect ratio of the input box
+// All dimensions must be greater than 1.0 or function panics
+// This function also does not handle the case where the input box has bigger dimensions that the output box
+fn get_max_box(ip_width: f64, ip_height: f64, op_width: f64, op_height: f64) -> (f64,f64) {
+
+    // we need to do this check as RUST will happily divide by float zero
+    if ip_width < 1.0 || ip_height < 1.0 || op_width < 1.0 || op_height < 1.0 {
+        panic!("get_max_box() - all supplied dimensions must be greater than 1.0");
+    }
+
+    println!("get max box {} {} {} {}", ip_width, ip_height,op_width, op_height);
+
+    if op_width/ip_width > op_height/ip_height {
+        let trans_height = &ip_height * (&op_height/&ip_height);
+        let trans_width = &ip_width * (op_height/ip_height);
+
+        println!("1 op_width/ip_width > op_height/ip_height");
+        println!("1 trans_width: {:?}, trans_height: {:?}", &trans_width,&trans_height);
+        (trans_width,trans_height)
+
+    } else if op_width/ip_width < op_height/ip_height {
+        let trans_height = &ip_height * (op_width/ip_width);
+        let trans_width = &ip_width * (op_width/ip_width);
+
+        println!("2 op_width/ip_width < op_height/ip_height");
+        println!("2 trans_width: {:?}, trans_height: {:?}", &trans_width,&trans_height);
+        (trans_width,trans_height)
+    } else
+    {
+        let trans_height = op_height;
+        let trans_width = op_width;
+        println!("3 op_width/ip_width = op_height/ip_height");
+        println!("3 trans_width: {:?}, trans_height: {:?}", trans_width,trans_height);
+        (trans_width,trans_height)
+    }
+
 }
