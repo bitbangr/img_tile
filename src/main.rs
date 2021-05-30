@@ -88,7 +88,6 @@ fn main() {
                                                                                                         output_height,
                                                                                                         output_height_tile_count);
 
-
     // create the input image buffer for use later
     let input_image_buffer = &input_img.to_rgb8();
 
@@ -155,6 +154,20 @@ fn main() {
     // for (j, tile_color) in all_colors.colors.iter().enumerate() {
     //     println!("tile color:{}, {:?}",j+1, tile_color);
     // }
+
+    // if swatch flag present on command line then generate color swatch file
+    if matches.is_present("swatch"){
+        // generate a color swatch file
+            match pdf_util::generate_color_swatch(&all_colors){
+                Err(v) => panic!(
+                    "Could not create color swatch file: {}",
+                    v.to_string()
+                ),
+                Ok(r) => println!("generate_color_swatch() Success {:?}",r),              // return a bufReader
+            };
+    }
+
+
 
     let mut color_vec: Vec<Vec<u8>> = build_color_vec(&all_colors);  // Create a Vector Array of elements of type u8
 
