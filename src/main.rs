@@ -283,6 +283,9 @@ fn main() {
 
     // println!("Window Pane Colors {:#?}", window_pane_colors);
 
+    // Create the output instructions doc
+    pdf_util::build_output_pdf(&save_path,&all_colors,&tile_color_count_vec,&output_window);
+
 } // end main
 
 // create the output image

@@ -4,6 +4,7 @@ use std::ops::Range;
 use std::io::BufWriter;
 use regex::Regex;
 use std::option::Option::Some;use crate::modtile;
+use euclid::{Point2D,Box2D};
 
 pub(crate) fn generate_color_swatch(all_colors: &crate::modtile::AllColors) -> Result<(), String> {
 
@@ -211,26 +212,26 @@ pub fn get_points_for_rect<P: Into<Pt>>(
 
 // Construct all elements of output PDF
 // This method does not embed image into output docs
-pub(crate) fn build_output_pdf(save_path: &&std::path::Path,
-                                mosaic_colours: Vec<(u8, u8, u8)>,
-                                all_colors: &crate::modtile::AllColors,
-                                tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,
-                                cb: &Vec<euclid::Box2D<i32, i32>>) -> Result<(), String> {
+// pub(crate) fn build_output_pdf(save_path: &&std::path::Path,
+//                                 mosaic_colours: Vec<(u8, u8, u8)>,
+//                                 all_colors: &crate::modtile::AllColors,
+//                                 tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,
+//                                 cb: &Vec<euclid::Box2D<i32, i32>>) -> Result<(), String> {
+pub(crate) fn build_output_pdf(save_path: &std::path::Path,
+                               all_colors: &modtile::AllColors,
+                               tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,
+                               output_window: &Vec<Vec<(euclid::Box2D<i32, i32>, modtile::RGB)>>) -> () {
+
 
     let doc_width_mm = 279.4;
     let doc_height_mm = 215.9;
     let (doc, page1, layer1) =
         PdfDocument::new(&all_colors.name.to_owned(), Mm(doc_width_mm), Mm(doc_height_mm), "Layer 1");
+    let current_layer = doc.get_page(page1).get_layer(layer1);
 
     let font1 = doc
         .add_external_font(File::open("/System/Library/Fonts/NewYork.ttf").unwrap())
         .unwrap();
-
-    // Construct image instead of embedding as this will allow precise placement of grid and circles
-    // write image to pdf file.
-    let current_layer = doc.get_page(page1).get_layer(layer1);
-    // let image3 = Image::from_dynamic_image(&out_img);
-    // image3.add_to_layer(current_layer.clone(), Some(Mm(30.0)), Some(Mm(30.0)), None, Some(3.5), Some(3.5), None);
 
     let fill_color = Color::Cmyk(Cmyk::new(0.0, 0.23, 0.0, 0.0, None));
     let outline_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None));
@@ -241,27 +242,10 @@ pub(crate) fn build_output_pdf(save_path: &&std::path::Path,
     current_layer.set_outline_color(outline_color);
     current_layer.set_outline_thickness(2.0);
 
+    // construct a grid (window panes) on current layer
+    construct_window_panes(&current_layer, doc_width_mm,doc_height_mm , font1 , output_window);
 
-    // draw grid on current layer
-    construct_square_grid(&current_layer, doc_width_mm,doc_height_mm , font1 , &mosaic_colours);
-
-    let major_grid_count = 12;
-
-
-    // fn example(width: usize, height: usize) {
-    //     // Base 1d array
-    //     let mut grid_raw = vec![0; width * height];
-    //
-    //     // Vector of 'width' elements slices
-    //     let mut grid_base: Vec<_> = grid_raw.as_mut_slice().chunks_mut(width).collect();
-    //
-    //     // Final 2d array `&mut [&mut [_]]`
-    //     let grid = grid_base.as_mut_slice();
-    //
-    //     // Accessing data
-    //     grid[0][0] = 4;
-    // }
-
+    let major_grid_count = 12;  // We get this from output_window
 
     let width: usize = 9;
     let height: usize = 9;
@@ -270,20 +254,20 @@ pub(crate) fn build_output_pdf(save_path: &&std::path::Path,
     // TODO mgj May 23 . Want to collect slices of colours for each major quandrant to make the pdf construction page for that quadrant
     // Vector of 'width' elements slices
     // let grid_base: Vec<(u8, u8, u8)> = mosaic_colours.as_slice().chunks(width).collect();
-    let mosaic_slice: Vec<_> = mosaic_colours.as_slice().chunks(width).collect();
+    // let mosaic_slice: Vec<_> = mosaic_colours.as_slice().chunks(width).collect();
     // println!("mc_slice {:?}", mc_slice);
 
     // perhaps time to consider using NDArray so that we can use slices?
 
     // // Final 2d array `&mut [&mut [_]]`
     // Construct 2D array
-    let grid = mosaic_slice.as_slice();
-    for row in 0..=8{
-        for col in 0..=8 {
-            println!("row:{} col:{} grid {:?}", row, col, grid[row][col]);
-        }
-        println!("Row");
-    }
+    // let grid = mosaic_slice.as_slice();
+    // for row in 0..=8{
+    //     for col in 0..=8 {
+    //         println!("row:{} col:{} grid {:?}", row, col, grid[row][col]);
+    //     }
+    //     println!("Row");
+    // }
 
     // println!("grid {:?}", grid[0][1]);
     // println!("grid {:?}", grid[0][2]);
@@ -363,9 +347,231 @@ pub(crate) fn build_output_pdf(save_path: &&std::path::Path,
     )).unwrap();
 
     // mgj todo some proper error handling
-    Ok(())
+    // Ok(())
     // Err("something broke".to_owned())
 
+}
+
+// Draw main window with panes (i.e. grid) to match output photo window panes
+// Layout of panes, tiles and colors are all contained within passed output_window
+//
+// Each pane dimension a Box2d(start, end) with values as px (not mm) should be derivable from First and Last tile in each pane
+//
+//   sample input image size 553x553 px,
+//
+//   We want Grid Major=3 and Grid Minor=4 gives 12 tiles vertically and 12 tiles horizontally
+// So 553/12 => gives 46.08 pixels per division.
+// Output image is resized to closest integer match so div gets rounded to 46*12 for output image size of 552x552 px
+//
+// Tile dimension = 46x46px.
+//
+// output image is 12 tiles x 12 tiles or 144 tiles in total
+
+// create new method method that handles different major row and major column count
+// i.e handle none-square grid
+// need to handle none square div i.e. grid_div_x, grid_div_y
+
+// new grid for fully constructed output pdf
+fn construct_window_panes(current_layer: &PdfLayerReference,
+                         doc_width_mm: f64,
+                         doc_height_mm: f64,
+                         grid_font: IndirectFontRef,
+                         output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>) -> () {
+
+
+    println!("construct_window_panes number of panes: {}", output_window.len());
+    println!("construct_window_panes number of tiles per pane: {}", output_window[0].len());
+
+    // draw a simple quarter arc at (0,0). Leave as a "makers mark"
+    draw_quarter_arc(&current_layer);
+
+    // PDF Coord based on lower bottom left as being origin
+    // Get pane_pdf coord adust the Box2D min max values accordingly
+    let window_panes_coords : Vec<Box2D<i32,i32>> = get_pdf_coords(output_window);
+
+    let grid_major= 4;
+    let grid_minor = 9;
+
+    let page_margin_ver_mm = 20.0; // size of top bottom margin
+    let page_margin_hor_mm = 20.0;  // size of left right margin
+
+    // let img_width = grid_div * grid_major * grid_minor;  // 640x640 - remember that we are rounding up
+    // let grid_div = 2.55; // 2.55 matches height and width of image
+    let grid_div = (doc_height_mm - (2.0 * page_margin_ver_mm)) / grid_major as f64 / grid_minor as f64;
+
+    let grid_origin_x :f64 = page_margin_hor_mm;  // Origin point (lower left corner of grid)
+    let grid_origin_y :f64 = page_margin_ver_mm;
+
+
+    // let outline_color = Color::Rgb(Rgb::new(0.5, 0.5, 0.5, None)); // gray
+    // current_layer.set_outline_color(outline_color);
+    // current_layer.set_outline_thickness(1.5);
+    //
+    // let mut mosaic_itr = mosaic_colours.into_iter();
+    //
+    // // for bc in &mosaic_colours {
+    // //     let var_rgb = bc.0; }
+    //
+    // // draw the circles first
+    // let radius = grid_div / 2.0 - 0.30;
+    // let div_count = grid_major * grid_minor;
+    // for row in (0..div_count).rev() {
+    //     for col in 0..div_count{
+    //         // set the fill colour to current tile as determined by row/col
+    //         // random fill
+    //         // TODO here mgj how do the colors get stored?
+    //         let tile_color = mosaic_itr.next();
+    //         // println!("mosaic_itr next {:?}",tile_color );
+    //
+    //         let red = tile_color.unwrap().0 as f64;
+    //         let green = tile_color.unwrap().1 as f64;
+    //         let blue = tile_color.unwrap().2 as f64;
+    //
+    //         // println!("mosaic_itr next red {:?}",red );
+    //
+    //         let fill_color = Color::Rgb(Rgb::new(red/255.0, green/255.0,blue/255.0, None));
+    //         current_layer.set_fill_color(fill_color);
+    //
+    //         draw_circle(&current_layer,
+    //                     grid_origin_x + grid_div/2.0 + grid_div * col as f64,
+    //                     grid_origin_y + grid_div/2.0 + grid_div * row as f64,
+    //                     radius);
+    //     }
+    // }
+    //
+    let outline_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
+    current_layer.set_outline_color(outline_color);
+    current_layer.set_outline_thickness(2.0);
+
+    // for each major grid column draw a vertical line
+    for column in 0..=grid_major // 0,1,2,3 , zero based
+    {
+        // Convert Mm into Pt function.
+        let start_x : Pt = Mm(grid_origin_x + column as f64 * grid_minor as f64 * grid_div as f64).into();
+        let start_y : Pt = Mm(grid_origin_y).into();
+        let end_x : Pt = start_x.clone();  // drawing a vertical line so x remains the same
+        let end_y : Pt = Mm(grid_origin_y + grid_major as f64 * grid_minor as f64 * grid_div as f64).into();
+
+        let line = Line {
+            points: get_points_for_line(start_x, start_y, end_x, end_y),
+            is_closed: false,
+            has_fill: false,
+            has_stroke: true,
+            is_clipping_path: false,
+        };
+        current_layer.add_shape(line);
+    }
+
+    // for each major grid row draw a horizontal line
+    for row in 0..=grid_major // 0,1,2,3 , zero based
+    {
+        // Convert Mm into Pt function.
+        let start_x : Pt = Mm(grid_origin_x).into();
+        let start_y : Pt = Mm(grid_origin_y + row as f64 * grid_minor as f64 * grid_div as f64).into();
+        let end_x : Pt = Mm(grid_origin_x + grid_major as f64 * grid_minor as f64 * grid_div as f64).into();
+        let end_y : Pt = start_y.clone();  // drawing a horizontal line so y remains the same
+
+        let line = Line {
+            points: get_points_for_line(start_x, start_y, end_x, end_y),
+            is_closed: false,
+            has_fill: false,
+            has_stroke: true,
+            is_clipping_path: false,
+        };
+        current_layer.add_shape(line);
+    }
+    //
+    // let outline_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
+    // let fill_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
+    // current_layer.set_outline_color(outline_color);
+    // current_layer.set_outline_thickness(2.0);
+    //
+    // current_layer.set_fill_color(fill_color);
+    //
+    // // Write out the major grid numbers
+    // let text_loc: Vec<(f64,f64,String)> = get_grid_text_loc( grid_origin_x, grid_origin_y, grid_major, grid_minor,  grid_div);
+    // for item in text_loc {
+    //     // println!("text location {:?}", item);
+    //     current_layer.use_text(item.2, 60.0, Mm(item.0), Mm(item.1), &grid_font);
+    // }
+
+}
+
+// PDF Coordinate system is based on lower bottom left as being origin
+// adust the Box2D min max values accordingly
+// Get the PX cooridinates of each window pane.
+// esentially constructing a Box2D using first tile min loc and last tile max location.
+fn get_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> ) -> Vec<Box2D<i32,i32>> {
+
+    // grab the max y dimension
+    let mut tile_max_y : i32 = 0;
+    for (_i, pane) in output_window.iter().enumerate() {
+        let tile_end = pane.last().unwrap().0;
+        if tile_end.max.y > tile_max_y {
+            tile_max_y = tile_end.max.y;
+        }
+    }
+
+    let range = 0..=tile_max_y;
+    let mut y_pdf: Vec<i32> = Vec::new();
+    for value in range.rev() {
+      y_pdf.push(value);
+    }
+
+    let mut ret : Vec<Box2D<i32,i32>> = Vec::new();
+    for (_i, pane) in output_window.iter().enumerate() {
+        let tile_start = pane.first().unwrap().0;
+        let tile_end = pane.last().unwrap().0;
+
+        // Tiles are the same physical box in PDF space or image space.
+        // The min max points describing that box in PDF coords are opposite to those in image coords
+
+        // Image space px
+        //  min(0,0)*******
+        //      *         *
+        //      *         *
+        //      *         *
+        //      ********(1,1)max
+
+        //  derived PDF min/max coords in Image Space
+        //      ********(1,0)max
+        //      *         *
+        //      *         *
+        //      *         *
+        //  min(0,1)*******
+
+        // Translate pdf min max values from image space coords into PDF space coords
+        //  x values are 1 to 1 mapping as x increases left to right for both images and pdf files
+        //  y values are opposite for pdf and image space coords
+        // for example if image space y axis has 4 elements 0,1,2,3 the corressponding pdf space axis will be 3,2,1,0
+        //    image space y axis: 0,1,2,3
+        //      pdf space y axis: 3,2,1,0
+
+        //   PDF min/max coords after translation into PDF coord Space
+        //      ********(1,3)max
+        //      *         *
+        //      *         *
+        //      *         *
+        //  min(0,2)*******
+
+        // Using this information we can create our new PDF equivalent set of coords
+        // create pdf min/max box with image space coords
+        let pdf_min_x = tile_start.min.x;
+        let pdf_min_y = y_pdf[tile_end.max.y as usize];
+        let pdf_max_x = tile_end.max.x;
+        let pdf_max_y = y_pdf[tile_start.min.y as usize];
+
+        println!("pdf_min (x,y) ({:?},{:?})", &pdf_min_x, &pdf_min_y);
+        println!("pdf_max (x,y) ({:?},{:?})", &pdf_max_x, &pdf_max_y);
+        println!("max_y {:?}", &tile_max_y);
+
+        let pdf_min_pt: Point2D<i32,i32> = Point2D::new(pdf_min_x,pdf_min_y);
+        let pdf_max_pt: Point2D<i32,i32> = Point2D::new(pdf_max_x,pdf_max_y);
+
+        let pane_box = Box2D {min: pdf_min_pt, max: pdf_max_pt};
+        &ret.push (pane_box);
+    }
+    ret
 }
 
 // Draw a main grid shape to match output photo
