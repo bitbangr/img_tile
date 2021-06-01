@@ -1,5 +1,5 @@
 use printpdf::*;
-use std::fs::File;
+use std::{collections::HashMap, fs::File};
 use std::ops::Range;
 use std::io::BufWriter;
 use regex::Regex;
@@ -387,21 +387,26 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
 
     // PDF Coord based on lower bottom left as being origin
     // Get pane_pdf coord adust the Box2D min max values accordingly
-    let window_panes_coords : Vec<Box2D<i32,i32>> = get_pdf_coords(output_window);
+    let (max_x, max_y, pane_count_x, pane_count_y, tile_x_count, tile_y_count, window_panes_coords) : (i32,i32, // max_x, max_y
+                                                                                                   i32,i32, // pane_count_x, pane_count_y
+                                                                                                   i32,i32, // tile_x_count, tile_y_count
+                                                                                                   Vec<Box2D<i32,i32>>) = get_pdf_coords(output_window);
 
-    let grid_major= 4;
-    let grid_minor = 9;
+    // TODO here may 31 -  Refactor Grid code below as Pane Code
+    // Draw each pane instead of rows and cols?
+
+    // let grid_major= 4;
+    // let grid_minor = 9;
+    let grid_major= pane_count_x;
+    let grid_minor = tile_x_count;
 
     let page_margin_ver_mm = 20.0; // size of top bottom margin
     let page_margin_hor_mm = 20.0;  // size of left right margin
 
-    // let img_width = grid_div * grid_major * grid_minor;  // 640x640 - remember that we are rounding up
-    // let grid_div = 2.55; // 2.55 matches height and width of image
     let grid_div = (doc_height_mm - (2.0 * page_margin_ver_mm)) / grid_major as f64 / grid_minor as f64;
 
     let grid_origin_x :f64 = page_margin_hor_mm;  // Origin point (lower left corner of grid)
     let grid_origin_y :f64 = page_margin_ver_mm;
-
 
     // let outline_color = Color::Rgb(Rgb::new(0.5, 0.5, 0.5, None)); // gray
     // current_layer.set_outline_color(outline_color);
@@ -480,20 +485,20 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
         };
         current_layer.add_shape(line);
     }
-    //
-    // let outline_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
-    // let fill_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
-    // current_layer.set_outline_color(outline_color);
-    // current_layer.set_outline_thickness(2.0);
-    //
-    // current_layer.set_fill_color(fill_color);
-    //
-    // // Write out the major grid numbers
-    // let text_loc: Vec<(f64,f64,String)> = get_grid_text_loc( grid_origin_x, grid_origin_y, grid_major, grid_minor,  grid_div);
-    // for item in text_loc {
-    //     // println!("text location {:?}", item);
-    //     current_layer.use_text(item.2, 60.0, Mm(item.0), Mm(item.1), &grid_font);
-    // }
+
+    let outline_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
+    let fill_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
+    current_layer.set_outline_color(outline_color);
+    current_layer.set_outline_thickness(2.0);
+
+    current_layer.set_fill_color(fill_color);
+
+    // Write out the major grid numbers
+    let text_loc: Vec<(f64,f64,String)> = get_grid_text_loc( grid_origin_x, grid_origin_y, grid_major, grid_minor,  grid_div);
+    for item in text_loc {
+        // println!("text location {:?}", item);
+        current_layer.use_text(item.2, 60.0, Mm(item.0), Mm(item.1), &grid_font);
+    }
 
 }
 
@@ -501,22 +506,41 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
 // adust the Box2D min max values accordingly
 // Get the PX cooridinates of each window pane.
 // esentially constructing a Box2D using first tile min loc and last tile max location.
-fn get_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> ) -> Vec<Box2D<i32,i32>> {
+fn get_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> ) -> (i32,i32, i32,i32, i32,i32, Vec<Box2D<i32,i32>>) {
 
-    // grab the max y dimension
-    let mut tile_max_y : i32 = 0;
-    for (_i, pane) in output_window.iter().enumerate() {
+    // grab the max x y dimensions
+    let mut win_max_x : i32 = 0;
+    let mut win_max_y : i32 = 0;
+    let mut tile_x_count :i32 = 0;
+    let mut tile_y_count :i32 = 0;
+
+    for (i, pane) in output_window.iter().enumerate() {
         let tile_end = pane.last().unwrap().0;
-        if tile_end.max.y > tile_max_y {
-            tile_max_y = tile_end.max.y;
+        if tile_end.max.x > win_max_x {
+            win_max_x = tile_end.max.x;
+        }
+        if tile_end.max.y > win_max_y {
+            win_max_y = tile_end.max.y;
+        }
+        // for the first pane find out the number of tile columns and tile rows
+        if i == 0 {
+            // println!("get_pdf_coords pane {}, {:?}", i, pane) ;
+            get_xy_tile_count(&pane,&mut tile_x_count, &mut tile_y_count);
         }
     }
 
-    let range = 0..=tile_max_y;
+    println!("get_pdf_coords\ntile rows: {}, tile cols: {}", &tile_x_count, &tile_y_count);
+
+    // construct array to let us get PDF coord from Image Coord
+    let range = 0..=win_max_y;
     let mut y_pdf: Vec<i32> = Vec::new();
     for value in range.rev() {
       y_pdf.push(value);
     }
+
+    // keep count for number of times each pane x and y used as a tile
+    let mut pane_x_coords: HashMap<i32, i32> = HashMap::new();
+    let mut pane_y_coords: HashMap<i32, i32> = HashMap::new();
 
     let mut ret : Vec<Box2D<i32,i32>> = Vec::new();
     for (_i, pane) in output_window.iter().enumerate() {
@@ -563,7 +587,18 @@ fn get_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> ) ->
 
         println!("pdf_min (x,y) ({:?},{:?})", &pdf_min_x, &pdf_min_y);
         println!("pdf_max (x,y) ({:?},{:?})", &pdf_max_x, &pdf_max_y);
-        println!("max_y {:?}", &tile_max_y);
+        println!("Window max_y {:?}", &win_max_y);
+        println!("Window max_x {:?}", &win_max_x);
+
+        *pane_x_coords.entry(pdf_min_x).or_insert(0) += 1;
+        *pane_x_coords.entry(pdf_min_x).or_insert(0) += 1;
+        *pane_x_coords.entry(pdf_max_x).or_insert(0) += 1;
+        *pane_x_coords.entry(pdf_max_x).or_insert(0) += 1;
+
+        *pane_y_coords.entry(pdf_min_y).or_insert(0) += 1;
+        *pane_y_coords.entry(pdf_min_y).or_insert(0) += 1;
+        *pane_y_coords.entry(pdf_max_y).or_insert(0) += 1;
+        *pane_y_coords.entry(pdf_max_y).or_insert(0) += 1;
 
         let pdf_min_pt: Point2D<i32,i32> = Point2D::new(pdf_min_x,pdf_min_y);
         let pdf_max_pt: Point2D<i32,i32> = Point2D::new(pdf_max_x,pdf_max_y);
@@ -571,7 +606,50 @@ fn get_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> ) ->
         let pane_box = Box2D {min: pdf_min_pt, max: pdf_max_pt};
         &ret.push (pane_box);
     }
-    ret
+
+    // all panes do not overlap so (i.e 99 vs 100) so divide by 2 to get actual number of rows and columns
+    let pane_x_count :i32 = pane_x_coords.len() as i32 / 2 ;
+    let pane_y_count :i32 = pane_y_coords.len() as i32 / 2 ;
+
+    println!{"width pane coords {:?}", &pane_x_coords}; //  width pane coords {0: 4, 99: 4, 100: 4, 199: 4}
+    println!{"height pane coords {:?}", &pane_y_coords} // height pane coords {0: 4, 99: 4, 100: 4, 199: 4}
+
+    println!("pane row count: {:?}", &pane_x_count);
+    println!("pane col count: {:?}", &pane_y_count);
+
+    (win_max_x,win_max_y,pane_x_count, pane_y_count, tile_x_count, tile_y_count, ret)
+}
+
+// Get the number of tile rows and tile columns in a pane
+// these values are identical for all panes
+fn get_xy_tile_count(pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>, tile_x_count: &mut i32, tile_y_count: &mut i32) -> () {
+
+    // keep count for number of times each pane x and y used as a tile
+    let mut tile_x_coords: HashMap<i32, i32> = HashMap::new();
+    let mut tile_y_coords: HashMap<i32, i32> = HashMap::new();
+
+    for (_i, tile) in pane.iter().enumerate() {
+
+        let tbox = tile.0;
+
+        let tile_min_x = tbox.min.x;
+        let tile_min_y = tbox.min.y;
+        let tile_max_x = tbox.max.x;
+        let tile_max_y = tbox.max.y;
+
+        *tile_x_coords.entry(tile_min_x).or_insert(0) += 1;
+        *tile_x_coords.entry(tile_min_x).or_insert(0) += 1;
+        *tile_x_coords.entry(tile_max_x).or_insert(0) += 1;
+        *tile_x_coords.entry(tile_max_x).or_insert(0) += 1;
+
+        *tile_y_coords.entry(tile_min_y).or_insert(0) += 1;
+        *tile_y_coords.entry(tile_min_y).or_insert(0) += 1;
+        *tile_y_coords.entry(tile_max_y).or_insert(0) += 1;
+        *tile_y_coords.entry(tile_max_y).or_insert(0) += 1;
+
+    }
+    *tile_x_count = tile_x_coords.len() as i32 /2 ;
+    *tile_y_count = tile_y_coords.len() as i32 /2 ;
 }
 
 // Draw a main grid shape to match output photo
