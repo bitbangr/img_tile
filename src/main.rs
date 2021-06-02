@@ -284,7 +284,9 @@ fn main() {
     // println!("Window Pane Colors {:#?}", window_pane_colors);
 
     // Create the output instructions doc
-    pdf_util::build_output_pdf(&save_path,&all_colors,&tile_color_count_vec,&output_window);
+    // pdf_util::build_output_pdf(&save_path,&all_colors,&tile_color_count_vec,&output_window);
+    // Changed from output window to input window to simplify PDF to image space cooridinates translation
+    pdf_util::build_output_pdf(&save_path,&all_colors,&tile_color_count_vec,&input_window);
 
 } // end main
 
@@ -379,6 +381,8 @@ fn create_out_panes(input_img_width: f64,
     println!("window_pane_cols: {:?}", &window_pane_cols);
 
     // Cannot have fractional pixels so round and convert to usize
+    // TODO mgj add some more error checking
+    //    i.e. if output hieght tile count is 3 and tiles per pane hieght is 4
     let img_width_div  = (input_img_width / output_width_tile_count as f64).round() as usize;
     let img_height_div = (input_img_height / output_height_tile_count as f64).round() as usize;
 

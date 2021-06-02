@@ -387,75 +387,65 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
 
     // PDF Coord based on lower bottom left as being origin
     // Get pane_pdf coord adust the Box2D min max values accordingly
-    let (max_x, max_y, pane_count_x, pane_count_y, tile_x_count, tile_y_count, window_panes_coords) : (i32,i32, // max_x, max_y
+    let (max_x, max_y, win_pane_row_count, win_pane_col_count, pane_tile_row_count, pane_tile_col_count, window_panes_coords) : (i32,i32, // max_x, max_y
                                                                                                    i32,i32, // pane_count_x, pane_count_y
                                                                                                    i32,i32, // tile_x_count, tile_y_count
-                                                                                                   Vec<Box2D<i32,i32>>) = get_pdf_coords(output_window);
+                                                                                                   Vec<Box2D<i32,i32>>) = get_pane_pdf_coords(output_window);
+
+    // return a PDF output window where all Box2D coords translated from image coord space to PDF coord space
+    let pdf_output_window :Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> = get_pdf_coords(output_window,max_y);
 
     // TODO here may 31 -  Refactor Grid code below as Pane Code
     // Draw each pane instead of rows and cols?
 
     // let grid_major= 4;
     // let grid_minor = 9;
-    let grid_major= pane_count_x;
-    let grid_minor = tile_x_count;
+    let grid_major_x= win_pane_col_count;
+    let grid_major_y= win_pane_row_count;
+    let grid_minor_x = pane_tile_col_count;
+    let grid_minor_y = pane_tile_row_count;
 
     let page_margin_ver_mm = 20.0; // size of top bottom margin
     let page_margin_hor_mm = 20.0;  // size of left right margin
 
-    let grid_div = (doc_height_mm - (2.0 * page_margin_ver_mm)) / grid_major as f64 / grid_minor as f64;
+    let grid_div_x = (doc_height_mm - (2.0 * page_margin_ver_mm)) / grid_major_x as f64 / grid_minor_x as f64;
+
+    // want div_x and div_y to remain proportional to original image and not depend out output size
+    let grid_div_y = grid_div_x * (max_y as f64/max_x as f64);
 
     let grid_origin_x :f64 = page_margin_hor_mm;  // Origin point (lower left corner of grid)
     let grid_origin_y :f64 = page_margin_ver_mm;
 
-    // let outline_color = Color::Rgb(Rgb::new(0.5, 0.5, 0.5, None)); // gray
-    // current_layer.set_outline_color(outline_color);
-    // current_layer.set_outline_thickness(1.5);
-    //
-    // let mut mosaic_itr = mosaic_colours.into_iter();
-    //
-    // // for bc in &mosaic_colours {
-    // //     let var_rgb = bc.0; }
-    //
-    // // draw the circles first
-    // let radius = grid_div / 2.0 - 0.30;
-    // let div_count = grid_major * grid_minor;
-    // for row in (0..div_count).rev() {
-    //     for col in 0..div_count{
-    //         // set the fill colour to current tile as determined by row/col
-    //         // random fill
-    //         // TODO here mgj how do the colors get stored?
-    //         let tile_color = mosaic_itr.next();
-    //         // println!("mosaic_itr next {:?}",tile_color );
-    //
-    //         let red = tile_color.unwrap().0 as f64;
-    //         let green = tile_color.unwrap().1 as f64;
-    //         let blue = tile_color.unwrap().2 as f64;
-    //
-    //         // println!("mosaic_itr next red {:?}",red );
-    //
-    //         let fill_color = Color::Rgb(Rgb::new(red/255.0, green/255.0,blue/255.0, None));
-    //         current_layer.set_fill_color(fill_color);
-    //
-    //         draw_circle(&current_layer,
-    //                     grid_origin_x + grid_div/2.0 + grid_div * col as f64,
-    //                     grid_origin_y + grid_div/2.0 + grid_div * row as f64,
-    //                     radius);
-    //     }
-    // }
-    //
+    let outline_color = Color::Rgb(Rgb::new(0.5, 0.5, 0.5, None)); // gray
+    current_layer.set_outline_color(outline_color);
+    current_layer.set_outline_thickness(1.5);
+
+    draw_summary_circles(pdf_output_window,
+                        &current_layer,
+                        doc_width_mm,
+                        doc_height_mm,
+                        page_margin_hor_mm,
+                        page_margin_ver_mm,
+                        grid_origin_x,
+                        grid_origin_y,
+                        grid_div_x,
+                        grid_div_y,
+                        max_x,
+                        max_y);
+
     let outline_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
     current_layer.set_outline_color(outline_color);
     current_layer.set_outline_thickness(2.0);
 
     // for each major grid column draw a vertical line
-    for column in 0..=grid_major // 0,1,2,3 , zero based
+    for column in 0..=grid_major_x // 0,1,2,3 , zero based
     {
+        review this shit here because the grid don't look good
         // Convert Mm into Pt function.
-        let start_x : Pt = Mm(grid_origin_x + column as f64 * grid_minor as f64 * grid_div as f64).into();
+        let start_x : Pt = Mm(grid_origin_x + column as f64 * grid_minor_x as f64 * grid_div_x as f64).into();
         let start_y : Pt = Mm(grid_origin_y).into();
         let end_x : Pt = start_x.clone();  // drawing a vertical line so x remains the same
-        let end_y : Pt = Mm(grid_origin_y + grid_major as f64 * grid_minor as f64 * grid_div as f64).into();
+        let end_y : Pt = Mm(grid_origin_y + grid_major_y as f64 * grid_minor_y as f64 * grid_div_y as f64).into();
 
         let line = Line {
             points: get_points_for_line(start_x, start_y, end_x, end_y),
@@ -468,12 +458,12 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     }
 
     // for each major grid row draw a horizontal line
-    for row in 0..=grid_major // 0,1,2,3 , zero based
+    for row in 0..=grid_major_y // 0,1,2,3 , zero based
     {
         // Convert Mm into Pt function.
         let start_x : Pt = Mm(grid_origin_x).into();
-        let start_y : Pt = Mm(grid_origin_y + row as f64 * grid_minor as f64 * grid_div as f64).into();
-        let end_x : Pt = Mm(grid_origin_x + grid_major as f64 * grid_minor as f64 * grid_div as f64).into();
+        let start_y : Pt = Mm(grid_origin_y + row as f64 * grid_minor_y as f64 * grid_div_y as f64).into();
+        let end_x : Pt = Mm(grid_origin_x + grid_major_x as f64 * grid_minor_x as f64 * grid_div_x as f64).into();
         let end_y : Pt = start_y.clone();  // drawing a horizontal line so y remains the same
 
         let line = Line {
@@ -493,26 +483,200 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
 
     current_layer.set_fill_color(fill_color);
 
-    // Write out the major grid numbers
-    let text_loc: Vec<(f64,f64,String)> = get_grid_text_loc( grid_origin_x, grid_origin_y, grid_major, grid_minor,  grid_div);
-    for item in text_loc {
-        // println!("text location {:?}", item);
-        current_layer.use_text(item.2, 60.0, Mm(item.0), Mm(item.1), &grid_font);
+    // // Write out the major grid numbers
+    // let text_loc: Vec<(f64,f64,String)> = get_grid_text_loc( grid_origin_x, grid_origin_y, grid_major, grid_minor,  grid_div);
+    // for item in text_loc {
+    //     // println!("text location {:?}", item);
+    //     current_layer.use_text(item.2, 60.0, Mm(item.0), Mm(item.1), &grid_font);
+    // }
+
+}
+
+
+// fn draw_summary_circles(pdf_output_window: Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>,
+//                                             current_layer: &&PdfLayerReference,
+//                                             grid_origin_x: f64,
+//                                             grid_origin_y: f64,
+//                                             grid_div_x: f64,
+//                                             grid_div_y: f64) -> () {
+fn draw_summary_circles(pdf_output_window: Vec<Vec<(Box2D<i32, i32>,
+                        modtile::RGB)>>,
+                        current_layer: &&PdfLayerReference,
+                        doc_width_mm: f64,
+                        doc_height_mm: f64,
+                        page_margin_hor_mm: f64,
+                        page_margin_ver_mm: f64,
+                        grid_origin_x: f64,
+                        grid_origin_y: f64,
+                        grid_div_x: f64,
+                        grid_div_y: f64,
+                        max_x: i32,
+                        max_y: i32) -> () {
+
+    // radius is based of the smaller of the x or y divisions
+    let radius = if grid_div_x < grid_div_y {
+        grid_div_x / 2.0 - 0.30
+    } else {
+        grid_div_y / 2.0 - 0.30
+    };
+
+    // create a box that is size of our image
+    // for testing  Specifically hard coded to size of  "input":"./images/Kroma_6_2x3_nonsquare.png",
+        let img_start_pt: Point2D<f64,f64> = Point2D::zero();
+      let img_end_pt: Point2D<f64,f64> = Point2D::new(225.0,50.0);  //  "input":"./images/Kroma_6_2x3_nonsquare.png",  TODO mgj switch to use max_x max_y?
+    let img_box :Box2D<f64,f64> = Box2D::new( img_start_pt, img_end_pt);
+    let img_box_width :f64 = img_box.width() as f64;
+    let img_box_height :f64 = img_box.height() as f64;
+
+    // create box that corresponds to img in PDF doc
+    // !!!!!!!!! THESE ARE MM units and PDF Point!!!!!!!
+    // Specifically PDF width is coded to be pdf_pagewidth minus both margins which is going to match the input image width
+    let pdf_start_x_mm = 0.0;
+    let pdf_start_y_mm = 0.0;
+    let pdf_end_x_mm = doc_width_mm - 2.0 * page_margin_hor_mm ;
+    let pdf_img_width_mm = pdf_end_x_mm - pdf_start_x_mm;
+
+    // scale y to match input image aspect
+    // want div_x and div_y to remain proportional to original image and not depend out output size
+    let pdf_end_y_mm =  (img_box_height / img_box_width) * pdf_img_width_mm;
+
+    let dpi : f64 = 72.0;   // 72 dots per inch typical PDF docs
+    let cmr : f64 = 25.4;   // 25.4 mm per inch
+
+    // convert mm to pt
+    let pdf_start_pt_x :f64 = pdf_start_x_mm * cmr / dpi;
+    let pdf_start_pt_y :f64 = pdf_start_y_mm * cmr / dpi;
+    let pdf_end_pt_x :f64 = pdf_end_x_mm * cmr / dpi;
+    let pdf_end_pt_y :f64 = pdf_end_y_mm * cmr / dpi;
+
+    let pdf_start_pt: Point2D<f64,f64> = Point2D::new(pdf_start_pt_x,pdf_start_pt_y);
+    let   pdf_end_pt: Point2D<f64,f64> = Point2D::new(pdf_end_pt_x,pdf_end_pt_y);
+    let pdf_box : Box2D<f64,f64> = Box2D::new(pdf_start_pt,pdf_end_pt);
+
+    //
+    // let pdf_start_pt_mm = Point::new(Mm(pdf_start_x_mm), Mm(pdf_start_y_mm));
+    // let pdf_end_pt_mm = Point::new(Mm(pdf_end_x_mm), Mm(pdf_end_y_mm));
+    //
+    // let test_start_x = pdf_start_pt_mm.x ;
+    // let test_start_y = pdf_start_pt_mm.y;
+    // let test_end_x = pdf_end_pt_mm.x;
+    // let test_end_y = pdf_end_pt_mm.y;
+
+    // println!("draw_summary_circles- start x: {:?}pt, start y: {:?}pt, end x: {:?}pt, end y: {:?}pt ", test_start_x, test_start_y, test_end_x, test_end_y);
+    println!("manual calc - start x: {:?}pt, start y: {:?}pt, end x: {:?}pt, end y: {:?}pt ", pdf_start_pt_x, pdf_start_pt_y, pdf_end_pt_x, pdf_end_pt_y);
+
+    // Now we can
+    //  1. PDF MM to image Point2D
+    //  convert pdf PT to img PX
+    //  2. Create a linear interpolation
+    //  3. Use that interprolation to get the box in PDF space
+
+    // >> TDDO work from here
+    // let box_xlat  = img_box.lerp(pdf_box, 1.0);
+    // let pdf_start_pt: Point2D<i32,i32> = Point2D::zero();
+    //   let pdf_end_pt: Point2D<i32,i32> = Point2D::new(test_end_y,test_end_y);  //  "input":"./images/Kroma_6_2x3_nonsquare.png",
+    // let img_box :Box2D<i32,i32> = Box2D::new( img_start_pt, img_end_pt);
+
+
+    // fn test_lerp() {
+    //     let b1 = Box2D::from_points(&[point2(-20.0, -20.0), point2(-10.0, -10.0)]);
+    //     let b2 = Box2D::from_points(&[point2(10.0, 10.0), point2(20.0, 20.0)]);
+    //     let b = b1.lerp(b2, 0.5);
+    //     assert_eq!(b.center(), Point2D::zero());
+    //     assert_eq!(b.size().width, 10.0);
+    //     assert_eq!(b.size().height, 10.0);
+    // }
+
+
+    println!("gox: {} goy: {} gdx: {} gdy: {} r: {}" , grid_origin_x, grid_origin_y, grid_div_x, grid_div_y, radius);
+
+    for (_i, pane) in pdf_output_window.iter().enumerate() {
+        for (_j, tile) in pane.iter().enumerate(){
+            let tile_box = tile.0;
+            let tile_rgb = tile.1;
+
+            let red = tile_rgb.0 as f64;
+            let green = tile_rgb.1 as f64;
+            let blue = tile_rgb.2 as f64;
+
+            let fill_color = Color::Rgb(Rgb::new(red/255.0, green/255.0,blue/255.0, None));
+            current_layer.set_fill_color(fill_color);
+
+            let box_center = tile_box.center();
+            // let center_x = box_center.x as f64 * cmr/dpi;
+            // let center_y = box_center.y as f64 * cmr/dpi;
+            let center_x = box_center.x as f64 ;
+            let center_y = box_center.y as f64 ;
+
+            // let btrans = box_center.lerp();
+            println!("circle loc: {:?}", &box_center);
+
+            draw_circle(&current_layer, center_x, center_y, radius) ;
+            // draw_circle(&current_layer,
+            //             grid_origin_x + grid_div_x/2.0 + grid_div_x * col as f64,
+            //             grid_origin_y + grid_div/2.0 + grid_div * row as f64,
+            //             radius);
+
+        }
     }
 
+    // let mut mosaic_itr = mosaic_colours.into_iter();
+
+    // for bc in &mosaic_colours {
+    //     let var_rgb = bc.0; }
+
+
+
+}
+
+// Convert all the Box2D coords from image coord space into PDF coord space.
+// see get_pane_pdf_coords() below for explanation of how this code works
+fn get_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>, max_y: i32) -> Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> {
+    // construct array to let us get equivalent y PDF coord from Image Coord
+    let range = 0..=max_y;
+    let mut y_pdf: Vec<i32> = Vec::new();
+    for value in range.rev() {
+      y_pdf.push(value);
+    }
+
+    let mut pdf_window : Vec<Vec<(Box2D<i32,i32>,modtile::RGB)>> = Vec::new();
+    for (_i, pane) in output_window.iter().enumerate() {
+        let mut pdf_pane : Vec<(Box2D<i32,i32>, modtile::RGB)> = Vec::new();
+        for (j, tile) in pane.iter().enumerate(){
+            let pdf_tile_rgb = tile.1;
+            // see get_pane_pdf_coords() for explanation of how this code works
+            // create pdf min/max box with image space coords
+            let pdf_tile_min_x = tile.0.min.x;
+            let pdf_tile_min_y = y_pdf[tile.0.max.y as usize];
+            let pdf_tile_max_x = tile.0.max.x;
+            let pdf_tile_max_y = y_pdf[tile.0.min.y as usize];
+
+            // println!("pdf_tile_min (x,y) ({:?},{:?})", &pdf_tile_min_x, &pdf_tile_min_y);
+            // println!("pdf_tile_max (x,y) ({:?},{:?})", &pdf_tile_max_x, &pdf_tile_max_y);
+
+            let pdf_tile_min_pt: Point2D<i32,i32> = Point2D::new(pdf_tile_min_x,pdf_tile_min_y);
+            let pdf_tile_max_pt: Point2D<i32,i32> = Point2D::new(pdf_tile_max_x,pdf_tile_max_y);
+
+            let pdf_tile_box = Box2D {min: pdf_tile_min_pt, max: pdf_tile_max_pt};
+
+            &pdf_pane.push ((pdf_tile_box,pdf_tile_rgb));
+        }
+        pdf_window.push(pdf_pane);
+    }
+    pdf_window
 }
 
 // PDF Coordinate system is based on lower bottom left as being origin
 // adust the Box2D min max values accordingly
 // Get the PX cooridinates of each window pane.
 // esentially constructing a Box2D using first tile min loc and last tile max location.
-fn get_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> ) -> (i32,i32, i32,i32, i32,i32, Vec<Box2D<i32,i32>>) {
+fn get_pane_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> ) -> (i32,i32, i32,i32, i32,i32, Vec<Box2D<i32,i32>>) {
 
     // grab the max x y dimensions
     let mut win_max_x : i32 = 0;
     let mut win_max_y : i32 = 0;
-    let mut tile_x_count :i32 = 0;
-    let mut tile_y_count :i32 = 0;
+    let mut tile_row_count :i32 = 0;
+    let mut tile_col_count :i32 = 0;
 
     for (i, pane) in output_window.iter().enumerate() {
         let tile_end = pane.last().unwrap().0;
@@ -524,12 +688,12 @@ fn get_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> ) ->
         }
         // for the first pane find out the number of tile columns and tile rows
         if i == 0 {
-            // println!("get_pdf_coords pane {}, {:?}", i, pane) ;
-            get_xy_tile_count(&pane,&mut tile_x_count, &mut tile_y_count);
+            // println!("get_pane_pdf_coords pane {}, {:?}", i, pane) ;
+            get_xy_tile_count(&pane,&mut tile_row_count, &mut tile_col_count);
         }
     }
 
-    println!("get_pdf_coords\ntile rows: {}, tile cols: {}", &tile_x_count, &tile_y_count);
+    println!("get_pane_pdf_coords- Each pane is {} row(s) by {} col(s) of tiles", &tile_row_count, &tile_col_count);
 
     // construct array to let us get PDF coord from Image Coord
     let range = 0..=win_max_y;
@@ -608,21 +772,25 @@ fn get_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> ) ->
     }
 
     // all panes do not overlap so (i.e 99 vs 100) so divide by 2 to get actual number of rows and columns
-    let pane_x_count :i32 = pane_x_coords.len() as i32 / 2 ;
-    let pane_y_count :i32 = pane_y_coords.len() as i32 / 2 ;
+    // number of rows corresponds to number of discrete y coords values
+    // number of cols corresponds to number of discrete x coords values
+    let win_pane_row_count :i32 = pane_y_coords.len() as i32 / 2 ;
+    let win_pane_col_count :i32 = pane_x_coords.len() as i32 / 2 ;
 
     println!{"width pane coords {:?}", &pane_x_coords}; //  width pane coords {0: 4, 99: 4, 100: 4, 199: 4}
     println!{"height pane coords {:?}", &pane_y_coords} // height pane coords {0: 4, 99: 4, 100: 4, 199: 4}
 
-    println!("pane row count: {:?}", &pane_x_count);
-    println!("pane col count: {:?}", &pane_y_count);
+    println!("window pane row count: {:?}", &win_pane_row_count);  // pane row count is 1 correct
+    println!("window pane col count: {:?}", &win_pane_col_count);  // pane col count is 3 incorrect... should be something is wrong here
 
-    (win_max_x,win_max_y,pane_x_count, pane_y_count, tile_x_count, tile_y_count, ret)
+    (win_max_x,win_max_y,win_pane_row_count, win_pane_col_count, tile_row_count, tile_col_count, ret)
 }
 
 // Get the number of tile rows and tile columns in a pane
 // these values are identical for all panes
-fn get_xy_tile_count(pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>, tile_x_count: &mut i32, tile_y_count: &mut i32) -> () {
+// number of rows corresponds to number of discrete y coords values
+// number of cols corresponds to number of discrete x coords values
+fn get_xy_tile_count(pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>, tile_row_count: &mut i32, tile_col_count: &mut i32) -> () {
 
     // keep count for number of times each pane x and y used as a tile
     let mut tile_x_coords: HashMap<i32, i32> = HashMap::new();
@@ -638,18 +806,13 @@ fn get_xy_tile_count(pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>, tile_x_count:
         let tile_max_y = tbox.max.y;
 
         *tile_x_coords.entry(tile_min_x).or_insert(0) += 1;
-        *tile_x_coords.entry(tile_min_x).or_insert(0) += 1;
-        *tile_x_coords.entry(tile_max_x).or_insert(0) += 1;
         *tile_x_coords.entry(tile_max_x).or_insert(0) += 1;
 
         *tile_y_coords.entry(tile_min_y).or_insert(0) += 1;
-        *tile_y_coords.entry(tile_min_y).or_insert(0) += 1;
         *tile_y_coords.entry(tile_max_y).or_insert(0) += 1;
-        *tile_y_coords.entry(tile_max_y).or_insert(0) += 1;
-
     }
-    *tile_x_count = tile_x_coords.len() as i32 /2 ;
-    *tile_y_count = tile_y_coords.len() as i32 /2 ;
+    *tile_row_count = tile_y_coords.len() as i32 /2 ;
+    *tile_col_count = tile_x_coords.len() as i32 /2 ;
 }
 
 // Draw a main grid shape to match output photo
