@@ -1,5 +1,5 @@
 use printpdf::*;
-use printpdf::utils::{calculate_points_for_circle, calculate_points_for_rect};
+use printpdf::utils::calculate_points_for_circle;
 use std::{collections::HashMap, fs::File};
 use std::ops::Range;
 use std::io::BufWriter;
@@ -220,7 +220,7 @@ pub fn get_points_for_rect<P: Into<Pt>>(
 //                                 cb: &Vec<euclid::Box2D<i32, i32>>) -> Result<(), String> {
 pub(crate) fn build_output_pdf(save_path: &std::path::Path,
                                all_colors: &modtile::AllColors,
-                               tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,
+                               _tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,
                                output_window: &Vec<Vec<(euclid::Box2D<i32, i32>, modtile::RGB)>>) -> () {
 
 
@@ -258,26 +258,40 @@ pub(crate) fn build_output_pdf(save_path: &std::path::Path,
 
 }
 
-// Draw main window with panes (i.e. grid) to match output photo window panes
+// Draw main pdf window with panes (i.e. grid) to match output photo window panes
 // Layout of panes, tiles and colors are all contained within passed output_window
 //
-// Each pane dimension a Box2d(start, end) with values as px (not mm) should be derivable from First and Last tile in each pane
+// Each pane dimension a Box2d(start, end) with values as px (not mm)
+//      is derivable from First tile min (x,y) and Last Tile max(x,y)
 //
-//   sample input image size 553x553 px,
+//  As an example:
+//   a sample input image size 225x50 px, determined from physical file
 //
-//   We want Grid Major=3 and Grid Minor=4 gives 12 tiles vertically and 12 tiles horizontally
-// So 553/12 => gives 46.08 pixels per division.
-// Output image is resized to closest integer match so div gets rounded to 46*12 for output image size of 552x552 px
+//  The following are specified in the supplied input Config file
+//         output units are unimportant mm, cm, inches, feet etc
+//    output_width: 675.0  (happens to be 3 times input image width)
+//   output_height: 150.0  (happens to be 3 times input image height)
+//     tile_size_x: 225    (happens to be 1/3 of output width)
+//     tile_size_y: 75     (happens to be 1/3 of output height)
 //
-// Tile dimension = 46x46px.
+//  Results in the following output:
+//      1 row of of 3 panes (columns)
+//      each pane contains 2 rows (vertical) and 1 column (horizontal) of tiles
 //
-// output image is 12 tiles x 12 tiles or 144 tiles in total
-
-// create new method method that handles different major row and major column count
-// i.e handle none-square grid
-// need to handle none square div i.e. tile_wid_mm, tile_hgt_mm
-
-// new grid for fully constructed output pdf
+//     |---------------max---------------|----------------|
+//     |                |                |                |  75 units high
+//     |****************|****************|****************|
+//     |                |                |                |  75 units high
+//    min---------------|----------------|----------------|
+//       225 units wide   225 units wide   225 units wide
+//
+// Given a physical PDF output document "letter size" in landscape orientation
+//    doc_width_mm = 279.4mm and doc_height_mm = 215.9mm
+//    horizontal and vertical page margins of 20mm each
+//
+//    And that the output PDF window has the same aspect ratio as the input image
+// then tile width and height in MM used in output PDF can be determined with basic math.
+//
 fn construct_window_panes(current_layer: &PdfLayerReference,
                          doc_width_mm: f64,
                          doc_height_mm: f64,
