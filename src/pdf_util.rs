@@ -330,9 +330,9 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     let pdftile_hgt_mm = pdftile_wid_mm * imgtile_hgt_px/imgtile_wid_px;  // <----- Hopefully this works!
     // let tile_hgt_mm = 26.5;  // Harded value actually produces correct output box
 
-    println!("?? ---> img_max_x_px {}, img_max_y_px {}", img_max_x_px, img_max_y_px );
-    println!("??---> imgtile_wid_px: {}, imgtile_hgt_px {}", imgtile_wid_px, imgtile_hgt_px );
-    println!("??---> pdftile_wid_mm: {}, pdftile_hgt_mm {}", pdftile_wid_mm, pdftile_hgt_mm );
+    println!("??--->   img_max_x_px: {:.3},   img_max_y_px: {:.3}", img_max_x_px, img_max_y_px );
+    println!("??---> imgtile_wid_px: {:.3}, imgtile_hgt_px: {:.3}", imgtile_wid_px, imgtile_hgt_px );
+    println!("??---> pdftile_wid_mm: {:.3}, pdftile_hgt_mm: {:.3}", pdftile_wid_mm, pdftile_hgt_mm );
 
     let grid_origin_x_mm :f64 = page_margin_hor_mm;  // Origin point (lower left corner of grid)
     let grid_origin_y_mm :f64 = page_margin_ver_mm;
@@ -585,7 +585,17 @@ fn draw_summary_circles(pdf_output_window: Vec<Vec<(Box2D<i32, i32>,
             current_layer.set_fill_color(fill_color);
 
             // // create an iterator over a vector of points and translate each point by some x,y offset
-            let mut rect_points = get_points_for_rect(Pt(tile_box.width() as f64), Pt(tile_box.height() as f64), Pt(tile_box.min.x as f64), Pt(tile_box.min.y as f64));
+            // let mut rect_points = get_points_for_rect(Pt(tile_box.width() as f64 * 3.0),
+            //                                           Pt(tile_box.height() as f64 * 3.0),
+            //                                           Pt(tile_box.min.x as f64 * 3.0 + page_margin_hor_pt.0),
+            //                                           Pt(tile_box.min.y as f64 * 3.0 + page_margin_ver_pt.0));
+            let mut rect_points = get_points_for_rect(Pt( (tile_box.width() as f64 + 1.0) * 3.0),
+                                                      Pt( (tile_box.height() as f64 +1.0) * 3.0),
+                                                      Pt(tile_box.min.x as f64 * 3.0 + page_margin_hor_pt.0),
+                                                      Pt(tile_box.min.y as f64 * 3.0 + page_margin_ver_pt.0));
+
+
+
             // for pt in rect_points.into_iter().map(|translate| { px});
 
             // let mut c = 0;
@@ -595,7 +605,7 @@ fn draw_summary_circles(pdf_output_window: Vec<Vec<(Box2D<i32, i32>,
 
             // translate this image size box into pdf size box
 
-            println!("Rect_points {:?}", &rect_points);
+            println!("Rect_points {:.2?}", &rect_points);
             let line = Line {
                 points: rect_points,
                 is_closed: true,
