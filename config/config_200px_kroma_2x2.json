@@ -1,7 +1,7 @@
 {
   "tile_colors":"./tile_json/kroma_colors.json",
   "input":"./images/4x4_Kroma_16.png",
-  "output":"./images/output/2x2_kroma.jpg",
+  "output":"./images/output/2x2_kroma_op.jpg",
   "output_width":200.0,
   "output_height":200.0,
   "aspect_x":1,

@@ -1,7 +1,7 @@
 {
   "tile_colors":"./tile_json/crayola_colors.json",
   "input":"./images/4x4_16_color_test.png",
-  "output":"./images/output/4x4_cray_15x15.jpg",
+  "output":"./images/output/4x4_cray_15x15_op.jpg",
   "output_width":40.0,
   "output_height":40.0,
   "aspect_x":1,
