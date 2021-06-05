@@ -167,8 +167,6 @@ fn main() {
             };
     }
 
-
-
     let mut color_vec: Vec<Vec<u8>> = build_color_vec(&all_colors);  // Create a Vector Array of elements of type u8
 
     // construct our KD tree with the desired color vec
@@ -234,9 +232,6 @@ fn main() {
     // for (i, (x, y)) in it.enumerate() {
     //    println!("w {:#?}: (wpc {:?}, wpc{:?})", i, x, y);
     // }
-
-    println!("******/n *** Zipped iterator ***\n******/n");
-    // println!("input window {:?}", &input_window);
 
     // zip input_window and output_window and copy input rgb value to output
     let wit = input_window.iter().zip(output_window.iter_mut());
