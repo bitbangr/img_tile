@@ -185,38 +185,7 @@ pub fn get_points_for_rect<P: Into<Pt>>(
         offset_x.into(),
         offset_y.into(),
     );
-
-
-  //   let size_x_pt: Pt = Pt((tile_box.width() as f64 + 1.0) * scale_factor_wid);
-  //   let size_y_pt: Pt = Pt((tile_box.height() as f64 +1.0) * scale_factor_hgt);
-  // let offset_x_pt: Pt = Pt(tile_box.min.x as f64 *  scale_factor_wid + grid_origin_x_pt.0);
-  // let offset_y_pt: Pt = Pt(tile_box.min.y as f64 * scale_factor_hgt + grid_origin_y_pt.0);
-
-
-    // let rect_points = get_points_for_rect(size_x_pt, size_y_pt, offset_x_pt, offset_y_pt);
-    // tile_box.width: 24, tile_box.height:24
-    // tile_box.min.x: 0, tile_box.min.y:0
-    // scale_factor_wid: 5, scale_factor_hgt:5
-    // size_x_pt: Pt(125.00),  size_y_pt: Pt(125.00)
-    // offset_x_pt: Pt(56.69),  offset_y_pt: Pt(56.69)
-    //
-    // Rect_points [(Point { x: Pt(56.69), y: Pt(181.69) }, fa),
-    //              (Point { x: Pt(181.69), y: Pt(181.69) }, fa),
-    //              (Point { x: Pt(181.69), y: Pt(56.69) }, fa),
-    //              (Point { x: Pt(56.69), y: Pt(56.69) }, fa)]
-
-    // tile_box.width: 24, tile_box.height :24
-    // tile_box.min.x: 0, tile_box.min.y: 0
-    // scale_factor_wid: 5, scale_factor_hgt: 5
-    // size_x_pt: Pt(125.00),  size_y_pt: Pt(125.00)
-    // offset_x_pt: Pt(0.00),  offset_y_pt: Pt(0.00)
-    //
-    // Rect_points [(Point { x: Pt(0.00), y: Pt(125.00) }, fa),
-    //              (Point { x: Pt(125.00), y: Pt(125.00) }, fa),
-    //              (Point { x: Pt(125.00), y: Pt(0.00) }, fa),
-    //              (Point { x: Pt(0.00), y: Pt(0.00) }, fa)]
-
-
+    
     let top = Pt(offset_y.0 + size_y.0);
     let bottom = Pt(offset_y.0);
     let left = Pt(offset_x.0);
