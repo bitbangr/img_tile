@@ -357,7 +357,8 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     let imgtile_hgt_px :f64 = (img_max_y_px as f64 + 1.0) / win_pane_row_count as f64 / pane_tile_row_count as f64;  // convert img_max_y_px to 1 based instead of 0 based to calc height
 
     // based on the image aspect ratio compared to pdf aspect ratio adjust the max width of output image in the pdf file
-    let image_aspect = imgtile_hgt_px / imgtile_wid_px;
+    let image_aspect :f64 = img_max_y_px as f64 / img_max_x_px as f64;
+
     let pdf_doc_aspect = doc_height_mm / doc_width_mm;
     let pdftile_wid_mm : f64;
     if image_aspect < pdf_doc_aspect {
@@ -369,6 +370,7 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
         pdftile_wid_mm = (doc_height_mm - (2.0 * page_margin_ver_mm)) / win_pane_row_count as f64 / pane_tile_row_count as f64;
         println!("image_aspect {:.4} => pdf_doc_aspect {:.4} -> pdftile_wid_mm: {:.4}, use pdf height to limit output", image_aspect, pdf_doc_aspect, pdftile_wid_mm);
     }
+
 
     // let pdftile_wid_mm = (doc_width_mm - (2.0 * page_margin_hor_mm)) / win_pane_col_count as f64 / pane_tile_col_count as f64;
     // the above line only works if the input image aspect is same or smaller that output PDF Aspect
@@ -382,19 +384,6 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
 
     let scale_factor_wid :f64 = pdftile_wid_pt.0 / imgtile_wid_px;
     let scale_factor_hgt :f64 = pdftile_hgt_pt.0 / imgtile_hgt_px ;
-
-    // this sorta works
-    // let scale_factor_wid :f64 = 5.0;
-    // let scale_factor_hgt :f64 = 5.0 ;
-
-    // let scale_factor_wid :f64 = imgtile_wid_px ;  // scale_factor_wid: 25, scale_factor_hgt:25
-    // let scale_factor_hgt :f64 = imgtile_hgt_px ;
-
-    // let scale_factor_wid :f64 = imgtile_wid_px / win_pane_col_count as f64 * pane_tile_col_count as f64 ;
-    // let scale_factor_hgt :f64 = imgtile_hgt_px / win_pane_row_count as f64 / pane_tile_row_count as f64 ;
-
-    // let scale_factor_wid :f64 = imgtile_wid_px/ pdftile_wid_mm;
-    // let scale_factor_hgt :f64 = imgtile_hgt_px/ pdftile_hgt_mm;
 
     println!("??--->   img_max_x_px: {:.3},   img_max_y_px: {:.3}", img_max_x_px, img_max_y_px );
     println!("??---> imgtile_wid_px: {:.3}, imgtile_hgt_px: {:.3}", imgtile_wid_px, imgtile_hgt_px );
@@ -420,8 +409,6 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     //                     img_max_x_px,
     //                     img_max_y_px);
 
-// win_pane_row_count, win_pane_col_count, pane_tile_row_count, pane_tile_col_count
-
     draw_summary_rects(pdf_output_window,
                         &current_layer,
                         grid_origin_x_mm,
@@ -432,8 +419,6 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
                         pane_tile_col_count,
                         scale_factor_wid,
                         scale_factor_hgt);
-
-
 
     let outline_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
     current_layer.set_outline_color(outline_color);
