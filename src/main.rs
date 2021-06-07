@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate clap;
 
 mod kd_tree;
@@ -7,8 +6,8 @@ mod modtile;
 
 use clap::{App, Arg};
 use euclid::{Point2D,Box2D};
-use image::{ GenericImage, GenericImageView, RgbImage,Rgb};
-use image::{DynamicImage,ImageResult};
+use image::{GenericImage, GenericImageView, RgbImage,Rgb};
+use image::DynamicImage;
 
 use std::path::Path;
 use std::collections::HashMap;
@@ -42,19 +41,18 @@ fn main() {
     // load all the config settings from JSON file
     let configs : modtile::Config = modtile::load_configs(matches.value_of("config").unwrap());
 
-    println!("Sucessfully Loaded -> {:?}", configs);
+    println!();
+    println!("Successfully Loaded -> {:?}", configs);
 
     let tile_colors = configs.tile_colors;
     let input = configs.input;
     let output = configs.output;
     let output_width = configs.output_width;
     let output_height = configs.output_height;
-    let aspect_x = configs.aspect_x;
-    let aspect_y = configs.aspect_y;
     let tile_size_x = configs.tile_size_x;
     let tile_size_y = configs.tile_size_y;
-    let tile_space_x = configs.tile_space_x;
-    let tile_space_y = configs.tile_space_y;
+    let _tile_space_x = configs.tile_space_x;
+    let _tile_space_y = configs.tile_space_y;
     let tiles_per_pane_width =  configs.tiles_per_pane_width;
     let tiles_per_pane_height = configs.tiles_per_pane_height;
 
@@ -66,6 +64,7 @@ fn main() {
     let input_img_width = img_width as f64;
     let input_img_height = img_height as f64;
 
+    println!();
     println!("input image width: {}\ninput image height: {}", &input_img_width,&input_img_height );
 
     // ********** todo May 28th currently does not handle all cases of bad aspect ratio
@@ -73,6 +72,7 @@ fn main() {
     // and resize the output image accordingly
     // strange behaviour noted so use with care.  Best to make sure op is some close ratio to input
     let (output_width, output_height) =  get_max_box(input_img_width, input_img_height , output_width, output_height);
+    println!();
     println!("output image width: {}\noutput image height: {}", &output_width,&output_height );
 
     // round to closest integer.
@@ -81,8 +81,9 @@ fn main() {
     // if more than half a tile it is included
     let output_width_tile_count : usize = (output_width/(tile_size_x )).round() as usize; // Should account for spacing of tiles
     let output_height_tile_count : usize = (output_height/(tile_size_y)).round() as usize;
-
+    println!();
     println!("tile size x:{}\ntile size y:{}", tile_size_x, tile_size_y);
+    println!();
     println!("output image width: {} , width tile count: {}\noutput image height: {} , height tile count: {}", output_width,
                                                                                                         output_width_tile_count,
                                                                                                         output_height,
@@ -194,10 +195,10 @@ fn main() {
     //      Output window struct can then be used to
     //         create the output image
     //         create the output pdf instructions doc
-    for (i, pane) in input_window.iter_mut().enumerate() {
+    for (_i, pane) in input_window.iter_mut().enumerate() {
         let mut pane_colours : Vec<(u8,u8,u8)> = Vec::new();
         // println!("**** Window pane {} ****", i+1);
-        for (j, mut tile) in pane.iter_mut().enumerate(){
+        for (_j, mut tile) in pane.iter_mut().enumerate(){
             // println!("Tile {}: {:?}", j+1, tile);
 
             let avg_col = get_avg_col(&input_image_buffer, &tile.0);
@@ -235,12 +236,12 @@ fn main() {
 
     // zip input_window and output_window and copy input rgb value to output
     let wit = input_window.iter().zip(output_window.iter_mut());
-    for (i, (ip,op)) in wit.enumerate() {
+    for (_i, (ip,op)) in wit.enumerate() {
        // println!("Pane {:?}: \ninput: {:?} \noutput: {:?})", i, ip,op);
        // println!{"\n"};
 
        let pit = ip.iter().zip(op.iter_mut());
-       for (j, (itp,otp)) in pit.enumerate() {
+       for (_j, (itp,otp)) in pit.enumerate() {
           // println!("Tile {:?}: \ninput: {:?} \noutput: {:?})", j, itp,otp);
           // println!{"\n"};
 
@@ -265,6 +266,7 @@ fn main() {
     tile_color_count_vec.sort_by(|a, b| b.1.cmp(a.1));
 
     // we want to print out detailed TileColor info (not just rgb value and count)
+    println!();
     println!("List of tiles used in this mosaic ordered by count of tiles") ;
     for bc in &tile_color_count_vec {
         let var_rgb : modtile::RGB = modtile::RGB(bc.0[0],bc.0[1],bc.0[2]);
@@ -360,10 +362,13 @@ fn create_out_panes(input_img_width: f64,
                     tiles_per_pane_width: usize,
                     tiles_per_pane_height: usize) -> Vec<Vec< (Box2D<i32, i32>,modtile::RGB) >> {
 
+    println!();
     println!("input_img_width: {:?}", input_img_width);
     println!("input_img_height: {:?}", input_img_height);
+    println!();
     println!("output_width_tile_count: {:?}", output_width_tile_count);
     println!("output_height_tile_count: {:?}", output_height_tile_count);
+    println!();
     println!("tiles_per_pane_width: {:?}", tiles_per_pane_width);
     println!("tiles_per_pane_height: {:?}", tiles_per_pane_height);
 
@@ -371,7 +376,7 @@ fn create_out_panes(input_img_width: f64,
 
     let window_pane_rows = output_height_tile_count / tiles_per_pane_height;
     let window_pane_cols = output_width_tile_count / tiles_per_pane_width;
-
+    println!();
     println!("window_pane_rows: {:?}", &window_pane_rows);
     println!("window_pane_cols: {:?}", &window_pane_cols);
 

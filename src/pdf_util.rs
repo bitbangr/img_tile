@@ -186,6 +186,37 @@ pub fn get_points_for_rect<P: Into<Pt>>(
         offset_y.into(),
     );
 
+
+  //   let size_x_pt: Pt = Pt((tile_box.width() as f64 + 1.0) * scale_factor_wid);
+  //   let size_y_pt: Pt = Pt((tile_box.height() as f64 +1.0) * scale_factor_hgt);
+  // let offset_x_pt: Pt = Pt(tile_box.min.x as f64 *  scale_factor_wid + grid_origin_x_pt.0);
+  // let offset_y_pt: Pt = Pt(tile_box.min.y as f64 * scale_factor_hgt + grid_origin_y_pt.0);
+
+
+    // let rect_points = get_points_for_rect(size_x_pt, size_y_pt, offset_x_pt, offset_y_pt);
+    // tile_box.width: 24, tile_box.height:24
+    // tile_box.min.x: 0, tile_box.min.y:0
+    // scale_factor_wid: 5, scale_factor_hgt:5
+    // size_x_pt: Pt(125.00),  size_y_pt: Pt(125.00)
+    // offset_x_pt: Pt(56.69),  offset_y_pt: Pt(56.69)
+    //
+    // Rect_points [(Point { x: Pt(56.69), y: Pt(181.69) }, fa),
+    //              (Point { x: Pt(181.69), y: Pt(181.69) }, fa),
+    //              (Point { x: Pt(181.69), y: Pt(56.69) }, fa),
+    //              (Point { x: Pt(56.69), y: Pt(56.69) }, fa)]
+
+    // tile_box.width: 24, tile_box.height :24
+    // tile_box.min.x: 0, tile_box.min.y: 0
+    // scale_factor_wid: 5, scale_factor_hgt: 5
+    // size_x_pt: Pt(125.00),  size_y_pt: Pt(125.00)
+    // offset_x_pt: Pt(0.00),  offset_y_pt: Pt(0.00)
+    //
+    // Rect_points [(Point { x: Pt(0.00), y: Pt(125.00) }, fa),
+    //              (Point { x: Pt(125.00), y: Pt(125.00) }, fa),
+    //              (Point { x: Pt(125.00), y: Pt(0.00) }, fa),
+    //              (Point { x: Pt(0.00), y: Pt(0.00) }, fa)]
+
+
     let top = Pt(offset_y.0 + size_y.0);
     let bottom = Pt(offset_y.0);
     let left = Pt(offset_x.0);
@@ -299,6 +330,7 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
                          grid_font: IndirectFontRef,
                          output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>) -> () {
 
+    println!();
     println!("construct_window_panes number of panes: {}", output_window.len());
     println!("construct_window_panes number of tiles per pane: {}", output_window[0].len());
 
@@ -321,14 +353,48 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     let page_margin_ver_mm = 20.0; // size of top bottom margin
     let page_margin_hor_mm = 20.0;  // size of left right margin
 
-    let imgtile_wid_px :f64 = img_max_x_px as f64/ win_pane_col_count as f64 / pane_tile_col_count as f64;
-    let imgtile_hgt_px :f64 = img_max_y_px as f64/ win_pane_row_count as f64 / pane_tile_row_count as f64;
+    let imgtile_wid_px :f64 = (img_max_x_px as f64 + 1.0) / win_pane_col_count as f64 / pane_tile_col_count as f64;  // convert img_max_x_px to 1 based instead of 0 based to calc width
+    let imgtile_hgt_px :f64 = (img_max_y_px as f64 + 1.0) / win_pane_row_count as f64 / pane_tile_row_count as f64;  // convert img_max_y_px to 1 based instead of 0 based to calc height
 
-    let pdftile_wid_mm = (doc_width_mm - (2.0 * page_margin_hor_mm)) / win_pane_col_count as f64 / pane_tile_col_count as f64;
+    // based on the image aspect ratio compared to pdf aspect ratio adjust the max width of output image in the pdf file
+    let image_aspect = imgtile_hgt_px / imgtile_wid_px;
+    let pdf_doc_aspect = doc_height_mm / doc_width_mm;
+    let pdftile_wid_mm : f64;
+    if image_aspect < pdf_doc_aspect {
+        pdftile_wid_mm = (doc_width_mm - (2.0 * page_margin_hor_mm)) / win_pane_col_count as f64 / pane_tile_col_count as f64;
+        println!();
+        println!("image_aspect {:.4} < pdf_doc_aspect {:.4} -> pdftile_wid_mm: {:.4}, use pdf width to limit output", image_aspect, pdf_doc_aspect, pdftile_wid_mm);
+    } else {
+        println!();
+        pdftile_wid_mm = (doc_height_mm - (2.0 * page_margin_ver_mm)) / win_pane_row_count as f64 / pane_tile_row_count as f64;
+        println!("image_aspect {:.4} => pdf_doc_aspect {:.4} -> pdftile_wid_mm: {:.4}, use pdf height to limit output", image_aspect, pdf_doc_aspect, pdftile_wid_mm);
+    }
+
+    // let pdftile_wid_mm = (doc_width_mm - (2.0 * page_margin_hor_mm)) / win_pane_col_count as f64 / pane_tile_col_count as f64;
+    // the above line only works if the input image aspect is same or smaller that output PDF Aspect
+    // let pdftile_wid_mm = (doc_height_mm - (2.0 * page_margin_ver_mm)) / win_pane_col_count as f64 / pane_tile_col_count as f64;
 
     // want pdf tile height and width to remain proportional to original input imagetile height and width
-    let pdftile_hgt_mm = pdftile_wid_mm * imgtile_hgt_px/imgtile_wid_px;  // <----- Hopefully this works!
-    // let tile_hgt_mm = 26.5;  // Harded value actually produces correct output box
+    let pdftile_hgt_mm = pdftile_wid_mm * imgtile_hgt_px/imgtile_wid_px;
+
+    let pdftile_wid_pt: Pt = Mm(pdftile_wid_mm).into();
+    let pdftile_hgt_pt: Pt = Mm(pdftile_hgt_mm).into();
+
+    let scale_factor_wid :f64 = pdftile_wid_pt.0 / imgtile_wid_px;
+    let scale_factor_hgt :f64 = pdftile_hgt_pt.0 / imgtile_hgt_px ;
+
+    // this sorta works
+    // let scale_factor_wid :f64 = 5.0;
+    // let scale_factor_hgt :f64 = 5.0 ;
+
+    // let scale_factor_wid :f64 = imgtile_wid_px ;  // scale_factor_wid: 25, scale_factor_hgt:25
+    // let scale_factor_hgt :f64 = imgtile_hgt_px ;
+
+    // let scale_factor_wid :f64 = imgtile_wid_px / win_pane_col_count as f64 * pane_tile_col_count as f64 ;
+    // let scale_factor_hgt :f64 = imgtile_hgt_px / win_pane_row_count as f64 / pane_tile_row_count as f64 ;
+
+    // let scale_factor_wid :f64 = imgtile_wid_px/ pdftile_wid_mm;
+    // let scale_factor_hgt :f64 = imgtile_hgt_px/ pdftile_hgt_mm;
 
     println!("??--->   img_max_x_px: {:.3},   img_max_y_px: {:.3}", img_max_x_px, img_max_y_px );
     println!("??---> imgtile_wid_px: {:.3}, imgtile_hgt_px: {:.3}", imgtile_wid_px, imgtile_hgt_px );
@@ -363,7 +429,9 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
                         win_pane_row_count,
                         win_pane_col_count,
                         pane_tile_row_count,
-                        pane_tile_col_count);
+                        pane_tile_col_count,
+                        scale_factor_wid,
+                        scale_factor_hgt);
 
 
 
@@ -397,8 +465,8 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
         // Convert Mm into Pt function.
         let start_x_pt : Pt = Mm(grid_origin_x_mm).into();
         let start_y_pt : Pt = Mm(grid_origin_y_mm + row as f64 * pane_tile_row_count as f64 * pdftile_hgt_mm as f64).into();  //  <--- something wrong here
-        let end_x_pt : Pt = Mm(grid_origin_x_mm + win_pane_col_count as f64 * pane_tile_col_count as f64 * pdftile_wid_mm as f64).into();
-        let end_y_pt : Pt = start_y_pt.clone();  // drawing a horizontal line so y remains the same
+          let end_x_pt : Pt = Mm(grid_origin_x_mm + win_pane_col_count as f64 * pane_tile_col_count as f64 * pdftile_wid_mm as f64).into();
+          let end_y_pt : Pt = start_y_pt.clone();  // drawing a horizontal line so y remains the same
 
         let line = Line {
             points: get_points_for_line(start_x_pt, start_y_pt, end_x_pt, end_y_pt),
@@ -432,12 +500,6 @@ fn draw_page_marks(current_layer: &&PdfLayerReference, doc_width_as_mm: f64, doc
 
     current_layer.set_outline_thickness(0.5);
 
-    let doc_min_point: Point = Point {x: Pt(0.0), y: Pt(0.0)};
-    let doc_max_point: Point = Point::new(Mm(doc_width_as_mm), Mm(doc_height_as_mm));
-
-    let  doc_width_pt:Pt = Mm(doc_width_as_mm).into();
-    let doc_height_pt:Pt = Mm(doc_height_as_mm).into();
-
     // A cross is made up from 1 horizontal line and 1 vertical line (8 points)
     let hor_min_x: Pt = Mm(-2.5).into();
     let hor_min_y: Pt = Mm(0.0).into();
@@ -453,11 +515,9 @@ fn draw_page_marks(current_layer: &&PdfLayerReference, doc_width_as_mm: f64, doc
     let step = 10;  // mm
     let step_pt: Pt = Mm(10.0).into();
     let mut rcount: f64 = 0.0 ;
-    for row in (0..=doc_height_as_mm as i32).step_by(step){
-        // let row64 = row as f64;
-
+    for _row in (0..=doc_height_as_mm as i32).step_by(step){
         let mut ccount: f64 = 0.0;
-        for col in (0..=doc_width_as_mm as i32).step_by(step){
+        for _col in (0..=doc_width_as_mm as i32).step_by(step){
         // println!("Did we get here?{:?} {:?} {:?} {:?}", row, rcount, col, ccount);
 
             let hmin_x: Pt = Pt(hor_min_x.0 + ccount * step_pt.0); // Mm(-2.5).into();
@@ -508,25 +568,26 @@ fn draw_summary_rects(pdf_output_window: Vec<Vec<(Box2D<i32, i32>,
                                win_pane_row_count: i32,
                                win_pane_col_count: i32,
                                pane_tile_row_count: i32,
-                               pane_tile_col_count: i32) -> () {
+                               pane_tile_col_count: i32,
+                               scale_factor_wid: f64,
+                               scale_factor_hgt: f64) -> () {
 
     // convert to Pt for strong typing
     let grid_origin_x_pt: Pt = Mm(grid_origin_x_mm).into();
     let grid_origin_y_pt: Pt = Mm(grid_origin_y_mm).into();
 
-    let pane_row_ct: f64 = win_pane_row_count as f64;
-    let pane_col_ct: f64 = win_pane_col_count as f64;
-    let tile_row_ct: f64 = pane_tile_row_count as f64;
-    let tile_col_ct: f64 = pane_tile_col_count as f64;
-
-
-    let scale_col_factor: f64 = pane_col_ct * tile_col_ct;
-    let scale_row_factor: f64 = pane_row_ct * tile_row_ct;
-
-    // NB.. scale factor seems to depend on image aspect ratio?
-    // let scale_factor: f64 = scale_row_factor;
-    // let scale_factor: f64 = scale_col_factor;
-    let scale_factor: f64 = 6.75;
+    // // let pane_row_ct: f64 = win_pane_row_count as f64;
+    // // let pane_col_ct: f64 = win_pane_col_count as f64;
+    // // let tile_row_ct: f64 = pane_tile_row_count as f64;
+    // // let tile_col_ct: f64 = pane_tile_col_count as f64;
+    //
+    // let scale_col_factor: f64 = pane_col_ct * tile_col_ct;
+    // let scale_row_factor: f64 = pane_row_ct * tile_row_ct;
+    //
+    // // NB.. scale factor seems to depend on image aspect ratio?
+    // // let scale_factor: f64 = scale_row_factor;
+    // // let scale_factor: f64 = scale_col_factor;
+    // let scale_factor: f64 = 1.0;
 
     let outline_color = Color::Rgb(Rgb::new(0.5, 0.5, 0.5, None)); // gray
     current_layer.set_outline_color(outline_color);
@@ -543,14 +604,34 @@ fn draw_summary_rects(pdf_output_window: Vec<Vec<(Box2D<i32, i32>,
             let fill_color = Color::Rgb(Rgb::new(red/255.0, green/255.0,blue/255.0, None));
             current_layer.set_fill_color(fill_color);
 
-            let mut rect_points = get_points_for_rect(Pt( (tile_box.width() as f64 + 1.0) * scale_factor),
-                                                    Pt( (tile_box.height() as f64 +1.0) * scale_factor),
-                                                    Pt(tile_box.min.x as f64 *  scale_factor + grid_origin_x_pt.0),
-                                                    Pt(tile_box.min.y as f64 * scale_factor + grid_origin_y_pt.0));
+              let size_x_pt: Pt = Pt((tile_box.width() as f64 + 1.0) * scale_factor_wid);
+              let size_y_pt: Pt = Pt((tile_box.height() as f64 +1.0) * scale_factor_hgt);
+            let offset_x_pt: Pt = Pt(tile_box.min.x as f64 *  scale_factor_wid + grid_origin_x_pt.0);
+            let offset_y_pt: Pt = Pt(tile_box.min.y as f64 * scale_factor_hgt + grid_origin_y_pt.0);
 
-            // println!("pane_col_ct * tile_col_ct -> {} * {} = {}", pane_col_ct, tile_col_ct, pane_col_ct * tile_col_ct);
-            // println!("pane_row_ct * tile_row_ct -> {} * {} = {}", pane_row_ct, tile_row_ct, pane_row_ct * tile_row_ct);
-            // println!("Rect_points {:.2?}", &rect_points);
+            // for testing remove grid origin
+          //   let size_x_pt: Pt = Pt((tile_box.width() as f64 + 1.0) * scale_factor_wid);
+          //   let size_y_pt: Pt = Pt((tile_box.height() as f64 +1.0) * scale_factor_hgt);
+          // let offset_x_pt: Pt = Pt(tile_box.min.x as f64 *  scale_factor_wid );
+          // let offset_y_pt: Pt = Pt(tile_box.min.y as f64 * scale_factor_hgt );
+
+
+            let rect_points = get_points_for_rect(size_x_pt, size_y_pt, offset_x_pt, offset_y_pt);
+
+            // let rect_points = get_points_for_rect(Pt((tile_box.width() as f64 + 1.0) * scale_factor_wid),
+            //                                           Pt((tile_box.height() as f64 +1.0) * scale_factor_hgt),
+            //                                           Pt(tile_box.min.x as f64 *  scale_factor_wid + grid_origin_x_pt.0),
+            //                                           Pt(tile_box.min.y as f64 * scale_factor_hgt + grid_origin_y_pt.0));
+
+            println!();
+            println!("tile_box.width: {}, tile_box.height :{}", tile_box.width(), tile_box.height() );
+            println!("tile_box.min.x: {}, tile_box.min.y: {}", tile_box.min.x, tile_box.min.y );
+            println!("scale_factor_wid: {:.2?}, scale_factor_hgt: {:.2?}", scale_factor_wid, scale_factor_hgt );
+            println!("size_x_pt: {:.2?},  size_y_pt: {:.2?}", size_x_pt, size_y_pt);
+            println!("offset_x_pt: {:.2?},  offset_y_pt: {:.2?}", offset_x_pt, offset_y_pt);
+            println!();
+            println!("Rect_points {:.2?}", &rect_points);
+            println!();
 
             let line = Line {
                 points: rect_points,
@@ -821,6 +902,7 @@ fn get_pane_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>
         }
     }
 
+    println!();
     println!("get_pane_pdf_coords- Each pane is {} row(s) by {} col(s) of tiles", &tile_row_count, &tile_col_count);
 
     // construct array to let us get PDF coord from Image Coord
@@ -904,10 +986,10 @@ fn get_pane_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>
     // number of cols corresponds to number of discrete x coords values
     let win_pane_row_count :i32 = pane_y_coords.len() as i32 / 2 ;
     let win_pane_col_count :i32 = pane_x_coords.len() as i32 / 2 ;
-
+    println!();
     println!{"width pane coords {:?}", &pane_x_coords}; //  width pane coords {0: 4, 99: 4, 100: 4, 199: 4}
     println!{"height pane coords {:?}", &pane_y_coords} // height pane coords {0: 4, 99: 4, 100: 4, 199: 4}
-
+    println!();
     println!("window pane row count: {:?}", &win_pane_row_count);  // pane row count is 1 correct
     println!("window pane col count: {:?}", &win_pane_col_count);  // pane col count is 3 incorrect... should be something is wrong here
 

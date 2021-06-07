@@ -146,6 +146,7 @@ pub fn load_all_colors(path_str: &str) -> AllColors {
 
     match File::open(path) {
        Ok(mut file) => {
+           println!();
            println!("Tile Colour File was successfully opened");
            let mut buf = vec![];
            if file.read_to_end(&mut buf).is_ok() {
