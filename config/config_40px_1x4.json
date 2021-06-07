@@ -4,8 +4,6 @@
   "output":"./images/output/4x1_cray.jpg",
   "output_width":40.0,
   "output_height":40.0,
-  "aspect_x":4,
-  "aspect_y":1,
   "tile_size_x":10,
   "tile_size_y":10,
   "tile_space_x":0.0,

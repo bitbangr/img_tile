@@ -4,8 +4,6 @@
   "output":"./images/output/Kroma_6_2x3_nonsquare_op.jpg",
   "output_width":675.0,
   "output_height":150.0,
-  "aspect_x":1,
-  "aspect_y":1,
   "tile_size_x":225,
   "tile_size_y":75,
   "tile_space_x":0.0,
