@@ -244,8 +244,14 @@ pub(crate) fn build_output_pdf(save_path: &std::path::Path,
     current_layer.set_outline_color(outline_color);
     current_layer.set_outline_thickness(2.0);
 
-    // construct a grid (window panes) on current layer
-    construct_window_panes(&current_layer, doc_width_mm,doc_height_mm , font1 , output_window);
+    // construct a grid of window panes on current layer
+    construct_window_panes(&current_layer, doc_width_mm,doc_height_mm , &font1 , output_window);
+
+    // construct a detail summary page for each pane
+    for (pane_no, pane) in output_window.iter().enumerate() {
+            construct_detail_summary_page(pane_no + 1, &pane, &doc,&font1,doc_width_mm, doc_height_mm);
+    }
+
 
     // save build instructions to same output file name but with pdf extension
     let fileout = save_path.with_extension("pdf");
@@ -258,6 +264,23 @@ pub(crate) fn build_output_pdf(save_path: &std::path::Path,
     // Err("something broke".to_owned())
 
 }
+
+// Construct the summary detail page for each pane
+fn construct_detail_summary_page(pane_no: usize, pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>, doc: &PdfDocumentReference, font1: &IndirectFontRef, doc_width_mm: f64, doc_height_mm: f64) -> () {
+    println!("Construct Detail Summary page {}", pane_no);
+
+    let (page1, layer1) = doc.add_page(Mm(doc_width_mm), Mm(doc_height_mm),format!("Page {}, Layer 1", pane_no.to_string().to_owned()));
+    let current_layer = doc.get_page(page1).get_layer(layer1);
+
+    // draw a simple quarter arc at (0,0). Leave as a "makers mark"
+    draw_quarter_arc(&&current_layer);
+
+    // draw some cross marks to aid in element placement
+    draw_page_marks(&&current_layer,doc_width_mm,doc_height_mm);
+
+}
+
+
 
 // Draw main pdf window with panes (i.e. grid) to match output photo window panes
 // Layout of panes, tiles and colors are all contained within passed output_window
@@ -296,7 +319,7 @@ pub(crate) fn build_output_pdf(save_path: &std::path::Path,
 fn construct_window_panes(current_layer: &PdfLayerReference,
                          doc_width_mm: f64,
                          doc_height_mm: f64,
-                         grid_font: IndirectFontRef,
+                         grid_font: &IndirectFontRef,
                          output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>) -> () {
 
     println!();
@@ -366,20 +389,7 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     current_layer.set_outline_color(outline_color);
     current_layer.set_outline_thickness(1.5);
 
-    // draw_summary_circles(pdf_output_window,
-    //                     &current_layer,
-    //                     doc_width_mm,
-    //                     doc_height_mm,
-    //                     page_margin_hor_mm,
-    //                     page_margin_ver_mm,
-    //                     grid_origin_x_mm,
-    //                     grid_origin_y_mm,
-    //                     pdftile_wid_mm,
-    //                     pdftile_hgt_mm,
-    //                     img_max_x_px,
-    //                     img_max_y_px);
-
-    draw_tiles(pdf_output_window,
+    draw_summary_circles(&pdf_output_window,
                         &current_layer,
                         grid_origin_x_mm,
                         grid_origin_y_mm,
@@ -389,6 +399,17 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
                         pane_tile_col_count,
                         scale_factor_wid,
                         scale_factor_hgt);
+
+    // draw_tiles(&pdf_output_window,
+    //                     &current_layer,
+    //                     grid_origin_x_mm,
+    //                     grid_origin_y_mm,
+    //                     win_pane_row_count,
+    //                     win_pane_col_count,
+    //                     pane_tile_row_count,
+    //                     pane_tile_col_count,
+    //                     scale_factor_wid,
+    //                     scale_factor_hgt);
 
     let outline_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
     current_layer.set_outline_color(outline_color);
@@ -522,7 +543,7 @@ fn draw_page_marks(current_layer: &&PdfLayerReference, doc_width_as_mm: f64, doc
 
 }
 
-fn draw_tiles(pdf_output_window: Vec<Vec<(Box2D<i32, i32>,
+fn draw_tiles(pdf_output_window: &Vec<Vec<(Box2D<i32, i32>,
                                modtile::RGB)>>,
                                current_layer: &&PdfLayerReference,
                                grid_origin_x_mm: f64,
@@ -582,88 +603,20 @@ fn draw_tiles(pdf_output_window: Vec<Vec<(Box2D<i32, i32>,
     }
 }
 
-fn draw_summary_circles(pdf_output_window: Vec<Vec<(Box2D<i32, i32>,
-                        modtile::RGB)>>,
+fn draw_summary_circles(pdf_output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>,
                         current_layer: &&PdfLayerReference,
-                        doc_width_mm: f64,
-                        doc_height_mm: f64,
-                        page_margin_hor_mm: f64,
-                        page_margin_ver_mm: f64,
                         grid_origin_x_mm: f64,
                         grid_origin_y_mm: f64,
-                        tile_wid_mm: f64,
-                        tile_hgt_mm: f64,
-                        max_x_px: i32,
-                        max_y_px: i32) -> () {
+                        win_pane_row_count: i32,
+                        win_pane_col_count: i32,
+                        pane_tile_row_count: i32,
+                        pane_tile_col_count: i32,
+                        scale_factor_wid: f64,
+                        scale_factor_hgt: f64) -> () {
 
-    // lets convert everything to Pt for strong typing
-    let doc_width_pt: Pt = Mm(doc_width_mm).into();
-    let doc_height_pt: Pt = Mm(doc_height_mm).into();
-    let page_margin_hor_pt: Pt = Mm(page_margin_hor_mm).into();
-    let page_margin_ver_pt: Pt = Mm(page_margin_ver_mm).into();
+    // convert to Pt for strong typing
     let grid_origin_x_pt: Pt = Mm(grid_origin_x_mm).into();
     let grid_origin_y_pt: Pt = Mm(grid_origin_y_mm).into();
-    // let tile_wid_pt: Pt = Mm(tile_wid_mm).into();
-    // let tile_hgt_pt: Pt = Mm(tile_hgt_mm).into();
-
-    // radius is based of the smaller of the x or y divisions
-    let radius_mm = if tile_wid_mm < tile_hgt_mm {
-        // tile_wid_mm / 2.0 - 0.30
-        tile_wid_mm / 2.0
-    } else {
-        // tile_hgt_mm / 2.0 - 0.30
-        tile_hgt_mm / 2.0
-    };
-
-    let radius_pt :Pt = Mm(radius_mm).into();
-
-    // create an input image box that is size of our image
-    // for testing  Specifically hard coded to size of  "input":"./images/Kroma_6_2x3_nonsquare.png",
-    // origin is assumed to be (0,0)
-    // let imgbox_wid_pt: Pt = Mm(225.0).into();
-    // let imgbox_hgt_pt: Pt = Mm(50.0).into();
-    // let imgbox_wid_pt: Pt = Mm(675.0).into();   // < >---output image  Changing this value changes the circle locations. It should only act as scale
-    // let imgbox_hgt_pt: Pt = Mm(150.0).into();
-
-    // create output box scaled to fit PDF page width.
-    // i.e. OP box is not actual real live size
-    //   This output box has same aspect ratio of img_box image width and height
-    // Specifically PDF box width is coded to be pdf doc_width_mm minus both margins.
-    let pdf_start_x_pt: Pt = Mm(0.0).into();
-    let pdf_start_y_pt: Pt = Mm(0.0).into();
-
-    let pdf_end_x_pt: Pt = Mm(doc_width_mm - 2.0 * page_margin_hor_mm).into() ;
-    let pdf_img_width_pt: Pt = Pt(pdf_end_x_pt.0 - pdf_start_x_pt.0);
-
-    // scale pdf y to match input image aspect ratio
-    // want div_x and div_y to remain proportional to original image and not depend out output size
-    // let pdf_end_y_pt: Pt =  Pt (imgbox_hgt_pt.0 / imgbox_wid_pt.0 * pdf_img_width_pt.0);
-    // let pdf_end_y_pt: Pt =  Pt (150.0 / 675.0 * doc_width_mm - 2.0 * page_margin_hor_mm);
-
-    // println!("***** pdf_start_x_pt: {:?}, pdf_start_y_pt: {:?},\npdf_end_x_pt: {:?}, pdf_end_y_pt: {:?}", pdf_start_x_pt, pdf_start_y_pt, pdf_end_x_pt ,pdf_end_y_pt );
-    // println!("pdf_end_x_pt / pdf_end_y_pt: {}" , pdf_end_x_pt / pdf_end_y_pt);
-    //
-    // dbg!(&pdf_end_x_pt,  &pdf_end_y_pt );
-
-// *****
-    // todo - mgj check this code out
-    println!("Need to examine draw summary circles red line shows output PDF dimension properly scaled\n*****\n*****\n");
-    let outline_color = Color::Rgb(Rgb::new(1.0, 0.0, 0.0, None)); // red
-    current_layer.set_outline_color(outline_color);
-
-    // // draw a diagonal line representing output pdf
-    // let hmin = Point { x: pdf_start_x_pt,  y: pdf_start_y_pt };
-    // let hmax = Point { x: pdf_end_x_pt,  y: pdf_end_y_pt};
-    // let hline_pts = vec![(hmin, false),(hmax, false)];
-    // let hline_line = Line {
-    //     points: hline_pts,
-    //     is_closed: false,
-    //     has_fill: false,
-    //     has_stroke: true,
-    //     is_clipping_path: false,
-    // };
-    // current_layer.add_shape(hline_line);
-// *****
 
     let outline_color = Color::Rgb(Rgb::new(0.5, 0.5, 0.5, None)); // gray
     current_layer.set_outline_color(outline_color);
@@ -680,72 +633,57 @@ fn draw_summary_circles(pdf_output_window: Vec<Vec<(Box2D<i32, i32>,
             let fill_color = Color::Rgb(Rgb::new(red/255.0, green/255.0,blue/255.0, None));
             current_layer.set_fill_color(fill_color);
 
-            // // create an iterator over a vector of points and translate each point by some x,y offset
-            // let mut rect_points = get_points_for_rect(Pt(tile_box.width() as f64 * 3.0),
-            //                                           Pt(tile_box.height() as f64 * 3.0),
-            //                                           Pt(tile_box.min.x as f64 * 3.0 + page_margin_hor_pt.0),
-            //                                           Pt(tile_box.min.y as f64 * 3.0 + page_margin_ver_pt.0));
-            let mut rect_points = get_points_for_rect(Pt( (tile_box.width() as f64 + 1.0) * 3.0),
-                                                      Pt( (tile_box.height() as f64 +1.0) * 3.0),
-                                                      Pt(tile_box.min.x as f64 * 3.0 + page_margin_hor_pt.0),
-                                                      Pt(tile_box.min.y as f64 * 3.0 + page_margin_ver_pt.0));
+            let size_x_pt: Pt = Pt(( tile_box.width() as f64 + 1.0) * scale_factor_wid);
+            let size_y_pt: Pt = Pt((tile_box.height() as f64 + 1.0) * scale_factor_hgt);
+            let radius_pt: Pt;
+            if size_x_pt < size_y_pt {
+                radius_pt = Pt(size_x_pt.0 / 2.0);
+            } else {
+                radius_pt = Pt(size_y_pt.0 / 2.0);
+            }
 
+            let center_x_pt: Pt = Pt(tile_box.center().x as f64 *  scale_factor_wid + grid_origin_x_pt.0);
+            let center_y_pt: Pt = Pt(tile_box.center().y as f64 * scale_factor_hgt + grid_origin_y_pt.0);
 
+            draw_circle_with_pts(&current_layer, center_x_pt, center_y_pt, radius_pt) ;
 
-            // for pt in rect_points.into_iter().map(|translate| { px});
-
-            // let mut c = 0;
-            // for pair in vec!['a', 'b', 'c'].into_iter().map(|letter| { c += 1; (letter, c) }) {
-            //     println!("{:?}", pair);
-            // }
-
-            // translate this image size box into pdf size box
-
-            println!("Rect_points {:.2?}", &rect_points);
-            let line = Line {
-                points: rect_points,
-                is_closed: true,
-                has_fill: true,
-                has_stroke: true,
-                is_clipping_path: false
-            };
-
-            current_layer.add_shape(line);
-
-
-            // Try drawing rectangles
-            // let box_center = tile_box.center();
-            //
-            // //this one works-ish
-            // // let center_x_pt: Pt = Pt( box_center.x as f64 * (imgbox_wid_pt/pdf_end_x_pt) + page_margin_hor_pt.0 );
-            // // let center_y_pt: Pt = Pt( box_center.y as f64 * (imgbox_hgt_pt/pdf_end_y_pt) + page_margin_ver_pt.0);
-            // let trans_x_pt = Mm( tile_wid_mm /2.0);
-            // let trans_y_pt = Mm( tile_hgt_mm /2.0);
-            //
-            // let center_x_pt: Pt = Pt( box_center.x as f64 + trans_x_pt.0 + page_margin_hor_pt.0 );
-            // let center_y_pt: Pt = Pt( box_center.y as f64 + trans_y_pt.0 + page_margin_ver_pt.0);
-            //
-            // let center_x_mm: Mm = center_x_pt.into();
-            // let center_y_mm: Mm = center_y_pt.into();
-            //
-            // println!("Tile Box {:?}", tile);
-            // println!("Box Center{:?}", box_center);
-            // println!("circle loc pt: x: {:.2?}, y: {:.2?}", center_x_pt, center_y_pt);
-            // println!("circle loc mm: x: {:.2?}, y: {:.2?}\n*****\n", center_x_mm, center_y_mm);
-            //
-            // draw_circle_with_pts(&current_layer, center_x_pt, center_y_pt, radius_pt) ;
+            // Debug stuff
+            // println!();
+            // println!("tile_box.width: {}, tile_box.height :{}", tile_box.width(), tile_box.height() );
+            // println!("tile_box.min.x: {}, tile_box.min.y: {}", tile_box.min.x, tile_box.min.y );
+            // println!("scale_factor_wid: {:.2?}, scale_factor_hgt: {:.2?}", scale_factor_wid, scale_factor_hgt );
+            // println!("size_x_pt: {:.2?},  size_y_pt: {:.2?}", size_x_pt, size_y_pt);
+            // println!("offset_x_pt: {:.2?},  offset_y_pt: {:.2?}", offset_x_pt, offset_y_pt);
+            // println!();
+            // println!("Rect_points {:.2?}", &rect_points);
+            // println!();
         }
     }
+}
 
-    // Manually drawing small dot to mark where circles should be drawn
-    dbg!(page_margin_hor_mm, page_margin_ver_mm);
+fn draw_diag(current_layer: &&PdfLayerReference) {
+
+    // // draw a diagonal line representing output pdf
+    // let hmin = Point { x: pdf_start_x_pt,  y: pdf_start_y_pt };
+    // let hmax = Point { x: pdf_end_x_pt,  y: pdf_end_y_pt};
+    // let hline_pts = vec![(hmin, false),(hmax, false)];
+    // let hline_line = Line {
+    //     points: hline_pts,
+    //     is_closed: false,
+    //     has_fill: false,
+    //     has_stroke: true,
+    //     is_clipping_path: false,
+    // };
+    // current_layer.add_shape(hline_line);
+
+    // Manually draw a small dot to mark where circles should be drawn
     let radi:Pt = Mm(1.5).into();
-    let x1:Pt = Mm(40.0 + page_margin_hor_mm).into();  // half of tile width
-    let x2:Pt = Mm(120.0+ page_margin_hor_mm).into();  // next position is 1 tile width away 80mm
-    let x3:Pt = Mm(200.0+ page_margin_hor_mm).into();  // next position is 1 tile width away 80mm
+    let x1:Pt = Mm(40.0 ).into();  // half of tile width
+    let x2:Pt = Mm(120.0).into();  // next position is 1 tile width away 80mm
+    let x3:Pt = Mm(200.0).into();  // next position is 1 tile width away 80mm
 
-    let y1:Pt = Mm(13.25 + page_margin_ver_mm).into();
-    let y2:Pt = Mm(3.0*13.25 + page_margin_ver_mm).into();
+    let y1:Pt = Mm(13.25).into();
+    let y2:Pt = Mm(3.0*13.25).into();
 
     println!("Pt (x1,y1):({:.2?},{:.2?})", x1,y1);
     println!("Pt (x2,y1):({:.2?},{:.2?})", x2,y1);
@@ -761,7 +699,6 @@ fn draw_summary_circles(pdf_output_window: Vec<Vec<(Box2D<i32, i32>,
     draw_circle_with_pts(&current_layer, x1, y2, radi) ;
     draw_circle_with_pts(&current_layer, x2, y2, radi) ;
     draw_circle_with_pts(&current_layer, x3, y2, radi) ;
-
 }
 
 // Convert all the Box2D coords from image coord space into PDF coord space.
