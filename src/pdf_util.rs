@@ -185,7 +185,7 @@ pub fn get_points_for_rect<P: Into<Pt>>(
         offset_x.into(),
         offset_y.into(),
     );
-    
+
     let top = Pt(offset_y.0 + size_y.0);
     let bottom = Pt(offset_y.0);
     let left = Pt(offset_x.0);
@@ -378,7 +378,7 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     //                     img_max_x_px,
     //                     img_max_y_px);
 
-    draw_summary_rects(pdf_output_window,
+    draw_tiles(pdf_output_window,
                         &current_layer,
                         grid_origin_x_mm,
                         grid_origin_y_mm,
@@ -439,8 +439,8 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
 
     current_layer.set_fill_color(fill_color);
 
-    // // Write out the major grid numbers
-    // let text_loc: Vec<(f64,f64,String)> = get_grid_text_loc( grid_origin_x, grid_origin_y, grid_major, grid_minor,  grid_div);
+    // Write out the major grid numbers
+    // let text_loc: Vec<(f64,f64,String)> = get_grid_text_loc( grid_origin_x_mm, grid_origin_y_mm, win_pane_row_count, win_pane_col_count,  grid_div_x );
     // for item in text_loc {
     //     // println!("text location {:?}", item);
     //     current_layer.use_text(item.2, 60.0, Mm(item.0), Mm(item.1), &grid_font);
@@ -514,7 +514,7 @@ fn draw_page_marks(current_layer: &&PdfLayerReference, doc_width_as_mm: f64, doc
 
 }
 
-fn draw_summary_rects(pdf_output_window: Vec<Vec<(Box2D<i32, i32>,
+fn draw_tiles(pdf_output_window: Vec<Vec<(Box2D<i32, i32>,
                                modtile::RGB)>>,
                                current_layer: &&PdfLayerReference,
                                grid_origin_x_mm: f64,
@@ -529,19 +529,6 @@ fn draw_summary_rects(pdf_output_window: Vec<Vec<(Box2D<i32, i32>,
     // convert to Pt for strong typing
     let grid_origin_x_pt: Pt = Mm(grid_origin_x_mm).into();
     let grid_origin_y_pt: Pt = Mm(grid_origin_y_mm).into();
-
-    // // let pane_row_ct: f64 = win_pane_row_count as f64;
-    // // let pane_col_ct: f64 = win_pane_col_count as f64;
-    // // let tile_row_ct: f64 = pane_tile_row_count as f64;
-    // // let tile_col_ct: f64 = pane_tile_col_count as f64;
-    //
-    // let scale_col_factor: f64 = pane_col_ct * tile_col_ct;
-    // let scale_row_factor: f64 = pane_row_ct * tile_row_ct;
-    //
-    // // NB.. scale factor seems to depend on image aspect ratio?
-    // // let scale_factor: f64 = scale_row_factor;
-    // // let scale_factor: f64 = scale_col_factor;
-    // let scale_factor: f64 = 1.0;
 
     let outline_color = Color::Rgb(Rgb::new(0.5, 0.5, 0.5, None)); // gray
     current_layer.set_outline_color(outline_color);
@@ -562,44 +549,30 @@ fn draw_summary_rects(pdf_output_window: Vec<Vec<(Box2D<i32, i32>,
               let size_y_pt: Pt = Pt((tile_box.height() as f64 +1.0) * scale_factor_hgt);
             let offset_x_pt: Pt = Pt(tile_box.min.x as f64 *  scale_factor_wid + grid_origin_x_pt.0);
             let offset_y_pt: Pt = Pt(tile_box.min.y as f64 * scale_factor_hgt + grid_origin_y_pt.0);
-
-            // for testing remove grid origin
-          //   let size_x_pt: Pt = Pt((tile_box.width() as f64 + 1.0) * scale_factor_wid);
-          //   let size_y_pt: Pt = Pt((tile_box.height() as f64 +1.0) * scale_factor_hgt);
-          // let offset_x_pt: Pt = Pt(tile_box.min.x as f64 *  scale_factor_wid );
-          // let offset_y_pt: Pt = Pt(tile_box.min.y as f64 * scale_factor_hgt );
-
-
             let rect_points = get_points_for_rect(size_x_pt, size_y_pt, offset_x_pt, offset_y_pt);
 
-            // let rect_points = get_points_for_rect(Pt((tile_box.width() as f64 + 1.0) * scale_factor_wid),
-            //                                           Pt((tile_box.height() as f64 +1.0) * scale_factor_hgt),
-            //                                           Pt(tile_box.min.x as f64 *  scale_factor_wid + grid_origin_x_pt.0),
-            //                                           Pt(tile_box.min.y as f64 * scale_factor_hgt + grid_origin_y_pt.0));
+            // Debug stuff
+            // println!();
+            // println!("tile_box.width: {}, tile_box.height :{}", tile_box.width(), tile_box.height() );
+            // println!("tile_box.min.x: {}, tile_box.min.y: {}", tile_box.min.x, tile_box.min.y );
+            // println!("scale_factor_wid: {:.2?}, scale_factor_hgt: {:.2?}", scale_factor_wid, scale_factor_hgt );
+            // println!("size_x_pt: {:.2?},  size_y_pt: {:.2?}", size_x_pt, size_y_pt);
+            // println!("offset_x_pt: {:.2?},  offset_y_pt: {:.2?}", offset_x_pt, offset_y_pt);
+            // println!();
+            // println!("Rect_points {:.2?}", &rect_points);
+            // println!();
 
-            println!();
-            println!("tile_box.width: {}, tile_box.height :{}", tile_box.width(), tile_box.height() );
-            println!("tile_box.min.x: {}, tile_box.min.y: {}", tile_box.min.x, tile_box.min.y );
-            println!("scale_factor_wid: {:.2?}, scale_factor_hgt: {:.2?}", scale_factor_wid, scale_factor_hgt );
-            println!("size_x_pt: {:.2?},  size_y_pt: {:.2?}", size_x_pt, size_y_pt);
-            println!("offset_x_pt: {:.2?},  offset_y_pt: {:.2?}", offset_x_pt, offset_y_pt);
-            println!();
-            println!("Rect_points {:.2?}", &rect_points);
-            println!();
-
-            let line = Line {
+            let tile_lines = Line {
                 points: rect_points,
                 is_closed: true,
                 has_fill: true,
                 has_stroke: true,
                 is_clipping_path: false
             };
-            current_layer.add_shape(line);
+            current_layer.add_shape(tile_lines);
         }
     }
 }
-
-
 
 fn draw_summary_circles(pdf_output_window: Vec<Vec<(Box2D<i32, i32>,
                         modtile::RGB)>>,
@@ -782,15 +755,6 @@ fn draw_summary_circles(pdf_output_window: Vec<Vec<(Box2D<i32, i32>,
     draw_circle_with_pts(&current_layer, x3, y2, radi) ;
 
 }
-
-// TODO mgj Figure out why these are not the same and if it affecting placement of the circles
-// seem to be a difference of  0.071428571428571 between two X/Y ratio -- Using (0,49) instead of (1,50) is causing rounding errors
-// ---> tile_wid_mm: 79.8, tile_hgt_mm 17.45625, x/y 4.571428571428571
-// ***** pdf_start_x_pt: Pt(0.0), pdf_start_y_pt: Pt(0.0),
-// pdf_end_x_pt: Pt(678.6142523999999), pdf_end_y_pt: Pt(150.8031672)
-// pdf_end_x_pt / pdf_end_y_pt: 4.5
-
-
 
 // Convert all the Box2D coords from image coord space into PDF coord space.
 // see get_pane_pdf_coords() below for explanation of how this code works
