@@ -393,23 +393,15 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
                         &current_layer,
                         grid_origin_x_mm,
                         grid_origin_y_mm,
-                        win_pane_row_count,
-                        win_pane_col_count,
-                        pane_tile_row_count,
-                        pane_tile_col_count,
                         scale_factor_wid,
                         scale_factor_hgt);
 
     // draw_tiles(&pdf_output_window,
-    //                     &current_layer,
-    //                     grid_origin_x_mm,
-    //                     grid_origin_y_mm,
-    //                     win_pane_row_count,
-    //                     win_pane_col_count,
-    //                     pane_tile_row_count,
-    //                     pane_tile_col_count,
-    //                     scale_factor_wid,
-    //                     scale_factor_hgt);
+    //            &current_layer,
+    //            grid_origin_x_mm,
+    //            grid_origin_y_mm,
+    //            scale_factor_wid,
+    //            scale_factor_hgt);
 
     let outline_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
     current_layer.set_outline_color(outline_color);
@@ -548,10 +540,6 @@ fn draw_tiles(pdf_output_window: &Vec<Vec<(Box2D<i32, i32>,
                                current_layer: &&PdfLayerReference,
                                grid_origin_x_mm: f64,
                                grid_origin_y_mm: f64,
-                               win_pane_row_count: i32,
-                               win_pane_col_count: i32,
-                               pane_tile_row_count: i32,
-                               pane_tile_col_count: i32,
                                scale_factor_wid: f64,
                                scale_factor_hgt: f64) -> () {
 
@@ -607,10 +595,6 @@ fn draw_summary_circles(pdf_output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::R
                         current_layer: &&PdfLayerReference,
                         grid_origin_x_mm: f64,
                         grid_origin_y_mm: f64,
-                        win_pane_row_count: i32,
-                        win_pane_col_count: i32,
-                        pane_tile_row_count: i32,
-                        pane_tile_col_count: i32,
                         scale_factor_wid: f64,
                         scale_factor_hgt: f64) -> () {
 
@@ -714,7 +698,7 @@ fn get_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>, max
     let mut pdf_window : Vec<Vec<(Box2D<i32,i32>,modtile::RGB)>> = Vec::new();
     for (_i, pane) in output_window.iter().enumerate() {
         let mut pdf_pane : Vec<(Box2D<i32,i32>, modtile::RGB)> = Vec::new();
-        for (j, tile) in pane.iter().enumerate(){
+        for (_j, tile) in pane.iter().enumerate(){
             let pdf_tile_rgb = tile.1;
             // see get_pane_pdf_coords() for explanation of how this code works
             // create pdf min/max box with image space coords
@@ -888,7 +872,6 @@ fn get_xy_tile_count(pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>, tile_row_coun
     *tile_col_count = tile_x_coords.len() as i32 /2 ;
 }
 
-
 // Return Pane text and location cooridinates display for the pane
 fn get_pane_text_loc_px( window_panes_coords_px: &Vec<Box2D<i32, i32>>) -> Vec<(f64, f64, String)> {
 
@@ -900,30 +883,6 @@ fn get_pane_text_loc_px( window_panes_coords_px: &Vec<Box2D<i32, i32>>) -> Vec<(
          res.push((center_px.x as f64 ,center_px.y as f64, pane_str));
      }
      res
-}
-
-fn draw_circle(current_layer: &&PdfLayerReference, x_mm: f64, y_mm: f64, radius_mm: f64) -> () {
-
-    // let xoff = location.x.0;
-    // let yoff = location.y.0;
-    // let circle_points_mm = get_points_for_circle(x_mm,y_mm,radius_mm);
-
-    let radius = Pt(radius_mm);
-    let offset_x = Pt(x_mm);
-    let offset_y = Pt(y_mm);
-
-    let circle_points = calculate_points_for_circle(radius, offset_x, offset_y);
-
-    let circle1 = Line {
-       points: circle_points,
-       is_closed: true,
-       has_fill: true,
-       has_stroke: true,
-       is_clipping_path: false,
-    };
-
-    // Draw the circle
-    current_layer.add_shape(circle1);
 }
 
 fn draw_circle_with_pts(current_layer: &&PdfLayerReference, offsetx_pt: Pt, offsety_pt: Pt, radius_pt: Pt) -> () {
@@ -942,15 +901,12 @@ fn draw_circle_with_pts(current_layer: &&PdfLayerReference, offsetx_pt: Pt, offs
     current_layer.add_shape(circle1);
 }
 
-
-
 // formula for creating a bezier arc
 // via https://spencermortensen.com/articles/bezier-circle/
 // A good cubic Bézier approximation to a circular arc is:
 // P0​=(0,1), P1​=(c,1), P2​=(1,c), P3​=(1,0) with c=0.551915024494
 // This yields an arc on the unit circle centered about the origin,
 // starting at P0​ and ending at P3, with the least amount of radial drift.
-
 fn draw_quarter_arc(current_layer: &&PdfLayerReference) -> () {
 
     // Quadratic shape. The "false" determines if the next (following)
@@ -1050,5 +1006,4 @@ pub fn get_points_for_line<P: Into<Pt>>(
         (start_pt, false),
         (end_pt, false),
     ]
-
 }
