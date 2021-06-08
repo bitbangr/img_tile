@@ -15,8 +15,6 @@ Config file is Json format.
   "output":"./images/output/2x2_kroma.jpg",  
   "output_width":200.0,  
   "output_height":200.0,  
-  "aspect_x":1,  
-  "aspect_y":1,  
   "tile_size_x":50,  
   "tile_size_y":50,  
   "tile_space_x":0.0,  
