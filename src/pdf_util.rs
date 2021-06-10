@@ -259,8 +259,8 @@ pub(crate) fn build_output_pdf(save_path: &std::path::Path,
 
 }
 
-// Construct the summary detail page for each pane
-fn construct_detail_summary_page(pane_no: usize,
+// Construct the detail page for each pane
+fn construct_pane_detail_page(pane_no: usize,
                                  pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>,
                                  doc: &PdfDocumentReference,
                                  font1: &IndirectFontRef,
@@ -272,8 +272,8 @@ fn construct_detail_summary_page(pane_no: usize,
                                  pane_tile_row_count: i32
                              ) -> () {
 
-    println!("Construct Detail Summary page {}", pane_no);
-    println!("Pane: {:?}", &pane);
+    println!("Construct Pane Detail page {}", pane_no);
+    // println!("Pane: {:?}", &pane);
 
     let (page1, layer1) = doc.add_page(Mm(doc_width_mm), Mm(doc_height_mm),format!("Page {}, Layer 1", pane_no.to_string().to_owned()));
     let current_layer = doc.get_page(page1).get_layer(layer1);
@@ -320,6 +320,7 @@ fn construct_detail_summary_page(pane_no: usize,
     let scale_factor_wid :f64 = pdftile_wid_pt.0 / imgtile_wid_px;
     let scale_factor_hgt :f64 = pdftile_hgt_pt.0 / imgtile_hgt_px ;
 
+    println!();
     println!("??--->   img_max_x_px: {:.3},   img_max_y_px: {:.3}", img_max_x_px, img_max_y_px );
     println!("??---> imgtile_wid_px: {:.3}, imgtile_hgt_px: {:.3}", imgtile_wid_px, imgtile_hgt_px );
     println!("??---> pdftile_wid_mm: {:.3}, pdftile_hgt_mm: {:.3}", pdftile_wid_mm, pdftile_hgt_mm );
@@ -336,7 +337,9 @@ fn construct_detail_summary_page(pane_no: usize,
                         grid_origin_x_mm,
                         grid_origin_y_mm,
                         scale_factor_wid,
-                        scale_factor_hgt);
+                        scale_factor_hgt,
+                        pane_tile_row_count,
+                        pane_tile_col_count);
     //
     // let outline_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
     // current_layer.set_outline_color(outline_color);
@@ -603,7 +606,7 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     // construct a detail summary page for each pane
     // for (pane_no, pane) in output_window.iter().enumerate() {
     for (pane_no, pane) in pdf_output_window.iter().enumerate() {
-            construct_detail_summary_page(pane_no + 1,
+            construct_pane_detail_page(pane_no + 1,
                                           &pane,
                                           &doc,
                                           &pane_font,
@@ -743,7 +746,9 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
                         grid_origin_x_mm: f64,
                         grid_origin_y_mm: f64,
                         scale_factor_wid: f64,
-                        scale_factor_hgt: f64) -> () {
+                        scale_factor_hgt: f64,
+                        pane_tile_row_count: i32,
+                        pane_tile_col_count: i32) -> () {
 
     // convert to Pt for strong typing
     let grid_origin_x_pt: Pt = Mm(grid_origin_x_mm).into();
@@ -752,9 +757,17 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
     let outline_color = Color::Rgb(Rgb::new(0.5, 0.5, 0.5, None)); // gray
     current_layer.set_outline_color(outline_color);
 
-    for (_i, tile) in pdf_output_pane.iter().enumerate(){
+    // grab lower left tile
+    let origin_pane = pdf_output_pane[ ((pane_tile_row_count - 1) * pane_tile_col_count)  as usize ].0 ;
+    println!("*** -> Origin Pane = {:?}", origin_pane);
 
-        let tile_box = tile.0;
+    // moving all tiles to lower left corner (0,0) of PDF page is simply subtracting the min x,y value of the "Origin Pane"
+    let x_transpose: i32 = origin_pane.min.x;
+    let y_transpose: i32 = origin_pane.min.y;
+
+    for (i, tile) in pdf_output_pane.iter().enumerate(){
+
+        let tile_box = tile.0;  // needs to be shifted back to 0,0
         let tile_rgb = tile.1;
 
         let red = tile_rgb.0 as f64;
@@ -773,21 +786,56 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
             radius_pt = Pt(size_y_pt.0 / 2.0);
         }
 
-        let center_x_pt: Pt = Pt(tile_box.center().x as f64 *  scale_factor_wid + grid_origin_x_pt.0);
-        let center_y_pt: Pt = Pt(tile_box.center().y as f64 * scale_factor_hgt + grid_origin_y_pt.0);
+        // Scaled and transposed by grid origin
+        let center_x : f64 = ( tile_box.center().x as f64 - x_transpose as f64) * scale_factor_wid + grid_origin_x_pt.0;
+        let center_y : f64 = ( tile_box.center().y as f64 - y_transpose as f64) * scale_factor_hgt + grid_origin_y_pt.0;
+        draw_circle_with_pts(&current_layer, Pt(center_x), Pt(center_y), radius_pt) ;
 
-        draw_circle_with_pts(&current_layer, center_x_pt, center_y_pt, radius_pt) ;
+        // Working
+        // let center_x_pt: Pt = Pt(tile_box.center().x as f64 - x_transpose  * scale_factor_wid + grid_origin_x_pt.0);
+        // let center_y_pt: Pt = Pt(tile_box.center().y as f64 * scale_factor_hgt + grid_origin_y_pt.0);
+        // draw_circle_with_pts(&current_layer, Pt(center_x), Pt(center_y), radius_pt) ;
 
-        // Debug stuff
-        // println!();
-        // println!("tile_box.width: {}, tile_box.height :{}", tile_box.width(), tile_box.height() );
-        // println!("tile_box.min.x: {}, tile_box.min.y: {}", tile_box.min.x, tile_box.min.y );
-        // println!("scale_factor_wid: {:.2?}, scale_factor_hgt: {:.2?}", scale_factor_wid, scale_factor_hgt );
-        // println!("size_x_pt: {:.2?},  size_y_pt: {:.2?}", size_x_pt, size_y_pt);
-        // println!("offset_x_pt: {:.2?},  offset_y_pt: {:.2?}", offset_x_pt, offset_y_pt);
-        // println!();
-        // println!("Rect_points {:.2?}", &rect_points);
-        // println!();
+        // Remainder to move box to zero zero (lower right corner)
+        // let center_x_pt = (tile_box.max.x).rem_euclid(tile_box.center().x);
+        // let center_y_pt = (tile_box.max.y).rem_euclid(tile_box.center().y);
+
+        // draw_circle_with_pts(&current_layer, Pt(center_x_pt), Pt(center_y_pt), radius_pt) ;
+
+
+        if (i  < 20)
+        {
+            // Debug stuff
+            println!();
+            println!("tile_box.width: {}, tile_box.height :{}", tile_box.width(), tile_box.height() );
+            println!("tile_box.center.x: {}, tile_box.center.y: {}", tile_box.center().x, tile_box.center().y );
+            println!("tile_box.min.x: {}, tile_box.min.y: {}", tile_box.min.x, tile_box.min.y );
+            println!("tile_box.max.x: {}, tile_box.max.y: {}", tile_box.max.x, tile_box.max.y );
+            println!("scale_factor_wid: {:.2?}, scale_factor_hgt: {:.2?}", scale_factor_wid, scale_factor_hgt );
+            // println!("size_x_pt: {:.2?},  size_y_pt: {:.2?}", size_x_pt, size_y_pt);
+            // println!("center_x_pt: {:.2?},  center_y_pt: {:.2?}", center_x_pt, center_y_pt);
+            // println!();
+        }
+
+        // let radius_pt: Pt = Pt(20.0);
+        // draw_circle_with_pts(&current_layer, Pt(ptx), Pt(pty), radius_pt) ;
+
+        // let tx = (tile_box.center().x ).rem_euclid(tile_box.width());
+        // let ty = (tile_box.center().y ).rem_euclid(tile_box.height());
+        // let ptx = tx as f64 *  scale_factor_wid + grid_origin_x_pt.0;
+        // let pty = ty as f64 * scale_factor_hgt + grid_origin_y_pt.0;
+        //
+        // let trans_x = (tile_box.center().x % tile_box.width() ) as f64 *  scale_factor_wid + grid_origin_x_pt.0;
+        // let trans_y = (tile_box.center().y  % tile_box.height()) as f64 *  scale_factor_wid + grid_origin_x_pt.0;
+
+        // let center_x_pt: Pt = Pt(tile_box.center().x as f64 *  scale_factor_wid + grid_origin_x_pt.0);
+        // let center_y_pt: Pt = Pt(tile_box.center().y as f64 * scale_factor_hgt + grid_origin_y_pt.0);
+        //
+        // // let radius_pt: Pt = Pt(20.0);
+        //
+        // draw_circle_with_pts(&current_layer, center_x_pt, center_y_pt, radius_pt) ;
+        // draw_circle_with_pts(&current_layer, Pt(ptx), Pt(pty), radius_pt) ;
+
     }
 }
 
