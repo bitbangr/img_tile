@@ -761,9 +761,13 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
     let origin_pane = pdf_output_pane[ ((pane_tile_row_count - 1) * pane_tile_col_count)  as usize ].0 ;
     println!("*** -> Origin Pane = {:?}", origin_pane);
 
-    // moving all tiles to lower left corner (0,0) of PDF page is simply subtracting the min x,y value of the "Origin Pane"
+    // moving all tiles to lower left corner (0,0) of PDF page is done by
+    //  simply subtracting the min x,y value of the "Origin Pane" from all the tile x,y values
     let x_transpose: i32 = origin_pane.min.x;
     let y_transpose: i32 = origin_pane.min.y;
+
+    let scale_factor_wid : f64 = 5.5;
+    let scale_factor_hgt : f64 = 5.5;
 
     for (i, tile) in pdf_output_pane.iter().enumerate(){
 
@@ -786,26 +790,19 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
             radius_pt = Pt(size_y_pt.0 / 2.0);
         }
 
+        // Working
         // Scaled and transposed by grid origin
         let center_x : f64 = ( tile_box.center().x as f64 - x_transpose as f64) * scale_factor_wid + grid_origin_x_pt.0;
         let center_y : f64 = ( tile_box.center().y as f64 - y_transpose as f64) * scale_factor_hgt + grid_origin_y_pt.0;
         draw_circle_with_pts(&current_layer, Pt(center_x), Pt(center_y), radius_pt) ;
 
-        // Working
-        // let center_x_pt: Pt = Pt(tile_box.center().x as f64 - x_transpose  * scale_factor_wid + grid_origin_x_pt.0);
-        // let center_y_pt: Pt = Pt(tile_box.center().y as f64 * scale_factor_hgt + grid_origin_y_pt.0);
+        // let center_x : f64 = ( tile_box.center().x as f64 - x_transpose as f64)  + grid_origin_x_pt.0;
+        // let center_y : f64 = ( tile_box.center().y as f64 - y_transpose as f64)  + grid_origin_y_pt.0;
         // draw_circle_with_pts(&current_layer, Pt(center_x), Pt(center_y), radius_pt) ;
 
-        // Remainder to move box to zero zero (lower right corner)
-        // let center_x_pt = (tile_box.max.x).rem_euclid(tile_box.center().x);
-        // let center_y_pt = (tile_box.max.y).rem_euclid(tile_box.center().y);
-
-        // draw_circle_with_pts(&current_layer, Pt(center_x_pt), Pt(center_y_pt), radius_pt) ;
-
-
-        if (i  < 20)
+        // Debug stuff
+        if i < 10
         {
-            // Debug stuff
             println!();
             println!("tile_box.width: {}, tile_box.height :{}", tile_box.width(), tile_box.height() );
             println!("tile_box.center.x: {}, tile_box.center.y: {}", tile_box.center().x, tile_box.center().y );
@@ -816,26 +813,6 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
             // println!("center_x_pt: {:.2?},  center_y_pt: {:.2?}", center_x_pt, center_y_pt);
             // println!();
         }
-
-        // let radius_pt: Pt = Pt(20.0);
-        // draw_circle_with_pts(&current_layer, Pt(ptx), Pt(pty), radius_pt) ;
-
-        // let tx = (tile_box.center().x ).rem_euclid(tile_box.width());
-        // let ty = (tile_box.center().y ).rem_euclid(tile_box.height());
-        // let ptx = tx as f64 *  scale_factor_wid + grid_origin_x_pt.0;
-        // let pty = ty as f64 * scale_factor_hgt + grid_origin_y_pt.0;
-        //
-        // let trans_x = (tile_box.center().x % tile_box.width() ) as f64 *  scale_factor_wid + grid_origin_x_pt.0;
-        // let trans_y = (tile_box.center().y  % tile_box.height()) as f64 *  scale_factor_wid + grid_origin_x_pt.0;
-
-        // let center_x_pt: Pt = Pt(tile_box.center().x as f64 *  scale_factor_wid + grid_origin_x_pt.0);
-        // let center_y_pt: Pt = Pt(tile_box.center().y as f64 * scale_factor_hgt + grid_origin_y_pt.0);
-        //
-        // // let radius_pt: Pt = Pt(20.0);
-        //
-        // draw_circle_with_pts(&current_layer, center_x_pt, center_y_pt, radius_pt) ;
-        // draw_circle_with_pts(&current_layer, Pt(ptx), Pt(pty), radius_pt) ;
-
     }
 }
 
