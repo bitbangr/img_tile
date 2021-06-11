@@ -104,7 +104,7 @@ pub(crate) fn generate_color_swatch(all_colors: &crate::modtile::AllColors) -> R
     // mgj todo some proper error handling
     Ok(())
     // Err("something broke".to_owned())
-}
+} // generate_color_swatch
 
 // draw swatches to pdf layer/page.
 // Currrently Each layer/page can accomodate 5 rows of 4 swatches
@@ -169,40 +169,7 @@ fn draw_layer1_swatches(layer1: &PdfLayerReference,
         layer1.use_text(&tc.number, swatch_font_size, x_in_mm, y_in_mm, font);
     }
 
-}
-
-// Calculate and return the points for a rectangle, given a horizontal and vertical offset,
-// and an offset into the page from the lower left corner.
-pub fn get_points_for_rect<P: Into<Pt>>(
-    size_x: P,
-    size_y: P,
-    offset_x: P,
-    offset_y: P,
-) -> Vec<(Point, bool)> {
-    let (size_x, size_y, offset_x, offset_y) = (
-        size_x.into(),
-        size_y.into(),
-        offset_x.into(),
-        offset_y.into(),
-    );
-
-    let top = Pt(offset_y.0 + size_y.0);
-    let bottom = Pt(offset_y.0);
-    let left = Pt(offset_x.0);
-    let right = Pt(offset_x.0 + size_x.0);
-
-    let top_left_pt = Point { x: left, y: top };
-    let top_right_pt = Point { x: right, y: top };
-    let bottom_right_pt = Point { x: right, y: bottom };
-    let bottom_left_pt = Point { x: left, y: bottom };
-
-    vec![
-        (top_left_pt, false),
-        (top_right_pt, false),
-        (bottom_right_pt, false),
-        (bottom_left_pt, false),
-    ]
-}
+} // draw_layer1_swatches
 
 // Create the output document containing all the info necessary to construct the mosaic
 // based off Created by the LEGO Art Mosaics shiny app. See https://github.com/joachim−gassen/legoartmosaic for more.
@@ -257,7 +224,7 @@ pub(crate) fn build_output_pdf(save_path: &std::path::Path,
     // Ok(())
     // Err("something broke".to_owned())
 
-}
+} // build_output_pdf
 
 // Draw main pdf window with panes (i.e. grid) to match output photo window panes
 // Layout of panes, tiles and colors are all contained within passed output_window
@@ -310,8 +277,8 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     // draw some cross marks to aid in element placement
     draw_page_marks(&current_layer,doc_width_mm,doc_height_mm);
 
-    // PDF Coord based on lower bottom left as being origin
-    // Get pane_pdf coord adust the Box2D min max values accordingly
+    // PDF Coordinate system based on bottom left corner as origin
+    // Get pane_pdf coord adusts the Box2D min max values accordingly
     let (img_max_x_px,
          img_max_y_px,
          win_pane_row_count,
@@ -466,7 +433,6 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
                                           pane_tile_col_count,
                                           pane_tile_row_count);
     }
-
 
 }  // construct_window_panes
 
@@ -1267,6 +1233,39 @@ fn draw_quarter_arc(current_layer: &&PdfLayerReference) -> () {
     // Draw first arc
     current_layer.add_shape(line1);
 } // draw_quarter_arc
+
+// Calculate and return the points for a rectangle, given a horizontal and vertical offset,
+// and an offset into the page from the lower left corner.
+pub fn get_points_for_rect<P: Into<Pt>>(
+    size_x: P,
+    size_y: P,
+    offset_x: P,
+    offset_y: P,
+) -> Vec<(Point, bool)> {
+    let (size_x, size_y, offset_x, offset_y) = (
+        size_x.into(),
+        size_y.into(),
+        offset_x.into(),
+        offset_y.into(),
+    );
+
+    let top = Pt(offset_y.0 + size_y.0);
+    let bottom = Pt(offset_y.0);
+    let left = Pt(offset_x.0);
+    let right = Pt(offset_x.0 + size_x.0);
+
+    let top_left_pt = Point { x: left, y: top };
+    let top_right_pt = Point { x: right, y: top };
+    let bottom_right_pt = Point { x: right, y: bottom };
+    let bottom_left_pt = Point { x: left, y: bottom };
+
+    vec![
+        (top_left_pt, false),
+        (top_right_pt, false),
+        (bottom_right_pt, false),
+        (bottom_left_pt, false),
+    ]
+} // get_points_for_rect
 
 // Determining values for circles
 // via stackeoverflow https://stackoverflow.com/questions/1734745/how-to-create-circle-with-bézier-curves
