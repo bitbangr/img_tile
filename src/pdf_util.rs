@@ -301,10 +301,11 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
 
     // based on the image aspect ratio compared to pdf aspect ratio adjust the max width of output image in the pdf file
     let image_aspect :f64 = img_max_y_px as f64 / img_max_x_px as f64;
+    let pdf_doc_aspect : f64 = (doc_height_mm - 2.0 * page_margin_ver_mm) / (doc_width_mm - 2.0 * page_margin_hor_mm);  // adjust for horizontal and vertical page margins
 
-    let pdf_doc_aspect = doc_height_mm / doc_width_mm;
     let pdftile_wid_mm : f64;
     let pdftile_hgt_mm : f64;
+
     if image_aspect < pdf_doc_aspect {
         pdftile_wid_mm = (doc_width_mm - (2.0 * page_margin_hor_mm)) / win_pane_col_count as f64 / pane_tile_col_count as f64;
         // want pdf tile height and width to remain proportional to original input imagetile height and width
@@ -318,9 +319,6 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
         println!();
         println!("image_aspect {:.4} => pdf_doc_aspect {:.4} -> pdftile_wid_mm: {:.4}, use pdf height to limit output", image_aspect, pdf_doc_aspect, pdftile_wid_mm);
     }
-
-    // want pdf tile height and width to remain proportional to original input imagetile height and width
-    // let pdftile_hgt_mm = pdftile_wid_mm * imgtile_hgt_px/imgtile_wid_px;
 
     let pdftile_wid_pt: Pt = Mm(pdftile_wid_mm).into();
     let pdftile_hgt_pt: Pt = Mm(pdftile_hgt_mm).into();
