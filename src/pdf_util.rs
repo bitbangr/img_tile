@@ -171,26 +171,16 @@ fn draw_layer1_swatches(layer1: &PdfLayerReference,
 
 } // draw_layer1_swatches
 
-// Create the output document containing all the info necessary to construct the mosaic
-// based off Created by the LEGO Art Mosaics shiny app. See https://github.com/joachim−gassen/legoartmosaic for more.
+// Create the output PDF document containing all the info necessary to construct the mosaic
+// Layout based off the LEGO Art Mosaics shiny app. See https://github.com/joachim−gassen/legoartmosaic for more.
 //  1. Create output Swatch for tiles used?
-//  2. output image at 50% opacity overlayed with a grid showing tile color.
-//  3. Draw Grid and number each grouping of nXn tiles
-//  4. Create a page for each Super grid with Tile color and number
-// Layout details for each Tile Grouping
-
-// Construct all elements of output PDF
-// This method does not embed image into output docs
-// pub(crate) fn build_output_pdf(save_path: &&std::path::Path,
-//                                 mosaic_colours: Vec<(u8, u8, u8)>,
-//                                 all_colors: &crate::modtile::AllColors,
-//                                 tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,
-//                                 cb: &Vec<euclid::Box2D<i32, i32>>) -> Result<(), String> {
+//  2. output image grid showing tiles and respective color.
+//  3. overlayed with Grid and number for each pane grouping of nXn tiles
+//  4. Create a detail summary page for each pane with Tile color and number and tile legend
 pub(crate) fn build_output_pdf(save_path: &std::path::Path,
                                all_colors: &modtile::AllColors,
                                _tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,
                                output_window: &Vec<Vec<(euclid::Box2D<i32, i32>, modtile::RGB)>>) -> () {
-
 
     let doc_width_mm = 279.4;
     let doc_height_mm = 215.9;
@@ -226,6 +216,8 @@ pub(crate) fn build_output_pdf(save_path: &std::path::Path,
 
 } // build_output_pdf
 
+// construct_window_panes()
+//
 // Draw main pdf window with panes (i.e. grid) to match output photo window panes
 // Layout of panes, tiles and colors are all contained within passed output_window
 //
@@ -323,6 +315,7 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     let pdftile_wid_pt: Pt = Mm(pdftile_wid_mm).into();
     let pdftile_hgt_pt: Pt = Mm(pdftile_hgt_mm).into();
 
+    // keep in mind that image_tile width and height can actually be larger than pdf_tile width and height
     let scale_factor_wid :f64 = pdftile_wid_pt.0 / imgtile_wid_px;
     let scale_factor_hgt :f64 = pdftile_hgt_pt.0 / imgtile_hgt_px ;
 
@@ -330,26 +323,26 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     println!("??---> imgtile_wid_px: {:.3}, imgtile_hgt_px: {:.3}", imgtile_wid_px, imgtile_hgt_px );
     println!("??---> pdftile_wid_mm: {:.3}, pdftile_hgt_mm: {:.3}", pdftile_wid_mm, pdftile_hgt_mm );
 
-    let grid_origin_x_mm :f64 = page_margin_hor_mm;  // Origin point (lower left corner of grid)
+    let grid_origin_x_mm :f64 = page_margin_hor_mm;  // PDF Origin point (lower left corner of grid)
     let grid_origin_y_mm :f64 = page_margin_ver_mm;
 
     let outline_color = Color::Rgb(Rgb::new(0.5, 0.5, 0.5, None)); // gray
     current_layer.set_outline_color(outline_color);
     current_layer.set_outline_thickness(1.5);
 
-    // draw_summary_circles(&pdf_output_window,
-    //                     &current_layer,
-    //                     grid_origin_x_mm,
-    //                     grid_origin_y_mm,
-    //                     scale_factor_wid,
-    //                     scale_factor_hgt);
+    draw_summary_circles(&pdf_output_window,
+                        &current_layer,
+                        grid_origin_x_mm,
+                        grid_origin_y_mm,
+                        scale_factor_wid,
+                        scale_factor_hgt);
 
-    draw_tiles(&pdf_output_window,
-               &current_layer,
-               grid_origin_x_mm,
-               grid_origin_y_mm,
-               scale_factor_wid,
-               scale_factor_hgt);
+    // draw_tiles(&pdf_output_window,
+    //            &current_layer,
+    //            grid_origin_x_mm,
+    //            grid_origin_y_mm,
+    //            scale_factor_wid,
+    //            scale_factor_hgt);
 
     let outline_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
     current_layer.set_outline_color(outline_color);
@@ -483,7 +476,7 @@ fn construct_pane_detail_page(pane_no: usize,
 
 // ***************************************
 // ***************************************
-// Something fucking not right with pdftile_wid_mm pdftile_hgt_mm
+// Something not right with pdftile_wid_mm pdftile_hgt_mm
 // this value being passed to draw_pane_circles() and used to calculate scale_factor_wid and scale_factor_hgt
 // The calculated values scale_factor_wid: 6.23, scale_factor_hgt: 6.23
 // For size_x_mm: 17.59,  size_y_mm: 17.59
@@ -507,9 +500,6 @@ fn construct_pane_detail_page(pane_no: usize,
         println!();
         println!("image_aspect {:.4} => pdf_doc_aspect {:.4} -> pdftile_wid_mm: {:.4}, use pdf height to limit output", image_aspect, pdf_doc_aspect, pdftile_wid_mm);
     }
-
-    // want pdf tile height and width to remain proportional to original input imagetile height and width
-    // let pdftile_hgt_mm = pdftile_wid_mm * imgtile_hgt_px/imgtile_wid_px;
 
     let pdftile_wid_pt: Pt = Mm(pdftile_wid_mm).into();
     let pdftile_hgt_pt: Pt = Mm(pdftile_hgt_mm).into();
