@@ -298,15 +298,14 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     let pdftile_wid_mm : f64;
     let pdftile_hgt_mm : f64;
 
+    // want pdf tile height and width to remain proportional to original input imagetile height and width
     if image_aspect < pdf_doc_aspect {
         pdftile_wid_mm = (doc_width_mm - (2.0 * page_margin_hor_mm)) / win_pane_col_count as f64 / pane_tile_col_count as f64;
-        // want pdf tile height and width to remain proportional to original input imagetile height and width
         pdftile_hgt_mm = pdftile_wid_mm * imgtile_hgt_px/imgtile_wid_px;
         println!();
         println!("image_aspect {:.4} < pdf_doc_aspect {:.4} -> pdftile_wid_mm: {:.4}, use pdf width to limit output", image_aspect, pdf_doc_aspect, pdftile_wid_mm);
     } else {
         pdftile_hgt_mm = (doc_height_mm - (2.0 * page_margin_ver_mm)) / win_pane_row_count as f64 / pane_tile_row_count as f64;
-        // want pdf tile height and width to remain proportional to original input imagetile height and width
         pdftile_wid_mm = pdftile_hgt_mm * imgtile_wid_px/imgtile_hgt_px;
         println!();
         println!("image_aspect {:.4} => pdf_doc_aspect {:.4} -> pdftile_wid_mm: {:.4}, use pdf height to limit output", image_aspect, pdf_doc_aspect, pdftile_wid_mm);
@@ -331,19 +330,19 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     current_layer.set_outline_color(outline_color);
     current_layer.set_outline_thickness(1.5);
 
-    draw_summary_circles(&pdf_output_window,
-                        &current_layer,
-                        grid_origin_x_mm,
-                        grid_origin_y_mm,
-                        scale_factor_wid,
-                        scale_factor_hgt);
+    // draw_summary_circles(&pdf_output_window,
+    //                     &current_layer,
+    //                     grid_origin_x_mm,
+    //                     grid_origin_y_mm,
+    //                     scale_factor_wid,
+    //                     scale_factor_hgt);
 
-    // draw_tiles(&pdf_output_window,
-    //            &current_layer,
-    //            grid_origin_x_mm,
-    //            grid_origin_y_mm,
-    //            scale_factor_wid,
-    //            scale_factor_hgt);
+    draw_tiles(&pdf_output_window,
+               &current_layer,
+               grid_origin_x_mm,
+               grid_origin_y_mm,
+               scale_factor_wid,
+               scale_factor_hgt);
 
     let outline_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
     current_layer.set_outline_color(outline_color);
@@ -467,17 +466,10 @@ fn construct_pane_detail_page(pane_no: usize,
 
     // based on the image aspect ratio compared to pdf aspect ratio adjust the max width of output image in the pdf file
     let image_aspect :f64 = (img_max_y_px + 1) as f64 / (img_max_x_px +1) as f64; // add one as pixel dimensions are zero based.
+
     let pdf_doc_aspect : f64 = (doc_height_mm - 2.0 * page_margin_ver_mm) / (doc_width_mm - page_margin_left_mm - page_margin_right_mm);  // adjust for horizontal and vertical page margins
     let pdftile_wid_mm : f64;
     let pdftile_hgt_mm : f64;
-
-// ***************************************
-// ***************************************
-// Something not right with
-// Diameter of Circle seems to be correct but there is spacing between each circle???
-// Should be no spaces as dia is 1/2 tile heigh width
-// ***************************************
-// ***************************************
 
     // want pdf tile height and width to remain proportional to original input imagetile height and width
     if image_aspect < pdf_doc_aspect {
@@ -520,8 +512,10 @@ fn construct_pane_detail_page(pane_no: usize,
                         scale_factor_wid,
                         scale_factor_hgt,
                         pane_tile_row_count,
-                        pane_tile_col_count);
-    //
+                        pane_tile_col_count,
+                        pdftile_wid_mm,
+                        pdftile_hgt_mm);
+
     // let outline_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
     // current_layer.set_outline_color(outline_color);
     // current_layer.set_outline_thickness(2.0);
@@ -710,7 +704,6 @@ fn draw_tiles(pdf_output_window: &Vec<Vec<(Box2D<i32, i32>,
     }
 } // draw_tiles
 
-
 // Copy of draw_summary_circles using scale scale_factor_wid
 fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
                         current_layer: &&PdfLayerReference,
@@ -719,7 +712,9 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
                         scale_factor_wid: f64,
                         scale_factor_hgt: f64,
                         pane_tile_row_count: i32,
-                        pane_tile_col_count: i32) -> () {
+                        pane_tile_col_count: i32,
+                        pdftile_wid_mm: f64,
+                        pdftile_hgt_mm: f64) -> () {
 
     // convert to Pt for strong typing
     let grid_origin_x_pt: Pt = Mm(grid_origin_x_mm).into();
@@ -749,34 +744,18 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
             let fill_color = Color::Rgb(Rgb::new(red/255.0, green/255.0,blue/255.0, None));
             current_layer.set_fill_color(fill_color);
 
-            // adding plus one here seems to make circles touch each other instead of having a space
-            // let size_x_pt: Pt = Pt(( tile_box.width() as f64 + 1.0) * scale_factor_wid);
-            // let size_y_pt: Pt = Pt((tile_box.height() as f64 + 1.0) * scale_factor_hgt);
-            
-            let size_x_pt: Pt = Pt(( tile_box.width() as f64) * scale_factor_wid);
-            let size_y_pt: Pt = Pt((tile_box.height() as f64) * scale_factor_hgt);
             let radius_pt: Pt;
-            if size_x_pt < size_y_pt {
-                radius_pt = Pt(size_x_pt.0 / 2.0);
+            if pdftile_wid_mm < pdftile_hgt_mm {
+                radius_pt = Mm(pdftile_wid_mm / 2.0).into();
             } else {
-                radius_pt = Pt(size_y_pt.0 / 2.0);
+                radius_pt = Mm(pdftile_hgt_mm / 2.0).into();
             }
 
             let center_x_pt: Pt = Pt((tile_box.center().x - x_transpose) as f64 * scale_factor_wid + grid_origin_x_pt.0);
             let center_y_pt: Pt = Pt((tile_box.center().y - y_transpose) as f64 * scale_factor_hgt + grid_origin_y_pt.0);
             draw_circle_with_pts(&current_layer, center_x_pt, center_y_pt, radius_pt) ;
 
-            // Debug stuff
-            // println!();
-            // println!("tile_box.width: {}, tile_box.height :{}", tile_box.width(), tile_box.height() );
-            // println!("tile_box.min.x: {}, tile_box.min.y: {}", tile_box.min.x, tile_box.min.y );
-            // println!("scale_factor_wid: {:.2?}, scale_factor_hgt: {:.2?}", scale_factor_wid, scale_factor_hgt );
-            // println!("size_x_pt: {:.2?},  size_y_pt: {:.2?}", size_x_pt, size_y_pt);
-            // println!("offset_x_pt: {:.2?},  offset_y_pt: {:.2?}", offset_x_pt, offset_y_pt);
-            // println!();
-            // println!("Rect_points {:.2?}", &rect_points);
-            // println!();
-
+            // // Debug stuff
             // if i < 10
             // {
             //     println!("****************************");
@@ -788,16 +767,12 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
             //     println!();
             //     println!("scale_factor_wid: {:.2?}, scale_factor_hgt: {:.2?}", scale_factor_wid, scale_factor_hgt );
             //     println!();
-            //     println!("size_x_pt: {:.2?},  size_y_pt: {:.2?}", size_x_pt, size_y_pt);
-            //     println!("size_x_mm: {:.2?},  size_y_mm: {:.2?}", size_x_mm.0, size_y_mm.0);
             //     println!();
             //     println!("grid_origin_x_pt: {:.2?},  grid_origin_y_pt: {:.2?}", grid_origin_x_pt.0, grid_origin_y_pt.0);
             //     println!("grid_origin_x_mm: {:.2?},  grid_origin_y_mm: {:.2?}", grid_origin_x_mm, grid_origin_y_mm);
             //     println!();
-            //     println!("tile_ctr_x_scaled_pt: {:.2?},  tile_ctr_y_scaled_pt: {:.2?}", tile_ctr_x_scaled_pt.0, tile_ctr_y_scaled_pt.0);
-            //     println!("tile_ctr_x_scaled_mm: {:.2?},  tile_ctr_y_scaled_mm: {:.2?}", tile_ctr_x_scaled_mm.0,  tile_ctr_y_scaled_mm.0);
+            //     println!("radius_pt: {:.2?}", radius_pt);
             // }
-
 
     }
 } // draw_pane_circles
