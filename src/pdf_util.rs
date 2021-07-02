@@ -8,6 +8,17 @@ use regex::Regex;
 use std::option::Option::Some;use crate::modtile;
 use euclid::{Point2D,Box2D};
 
+#[derive(PartialEq, Debug)]
+pub struct PanePdfConfig {
+     max_pane_x_px: i32,    // img_max_x_px : i32 ,
+     max_pane_y_px: i32,    // img_max_y_px : i32,
+     pane_row_count : i32,
+     pane_col_count : i32,
+     pane_tile_row_count : i32,
+     pane_tile_col_count :i32 ,
+     window_panes_coords_px : Vec<Box2D<i32,i32>>
+}
+
 pub(crate) fn generate_color_swatch(all_colors: &crate::modtile::AllColors) -> Result<(), String> {
 
     let x_mm = 215.9;
@@ -271,28 +282,42 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
 
     // PDF Coordinate system based on bottom left corner as origin
     // Get pane_pdf coord adusts the Box2D min max values accordingly
-    let (img_max_x_px,
-         img_max_y_px,
-         win_pane_row_count,
-         win_pane_col_count,
-         pane_tile_row_count,
-         pane_tile_col_count,
-         window_panes_coords_px) : (i32,i32, // max_x, max_y
-                                 i32,i32, // pane_count_x, pane_count_y
-                                 i32,i32, // tile_x_count, tile_y_count
-                                 Vec<Box2D<i32,i32>>) = get_pane_pdf_coords(output_window);
+    // let (img_max_x_px, // change to max_pane_x_px
+    //      img_max_y_px, // change to max_pane_y_px
+    //      win_pane_row_count,
+    //      win_pane_col_count,
+    //      pane_tile_row_count,
+    //      pane_tile_col_count,
+    //      window_panes_coords_px) : (i32,i32, // max_x, max_y
+    //                              i32,i32, // pane_count_x, pane_count_y
+    //                              i32,i32, // tile_x_count, tile_y_count
+    //                              Vec<Box2D<i32,i32>>) = get_pane_pdf_coords(output_window);
+
+    // pub struct PanePdfConfig {
+    //      max_pane_x_px: i32,    // img_max_x_px : i32 ,
+    //      max_pane_y_px: i32,    // img_max_y_px : i32,
+    //      pane_row_count : i32,
+    //      pane_col_count : i32,
+    //      pane_tile_row_count : i32,
+    //      pane_tile_col_count :i32 ,
+    //      window_panes_coords_px : Vec<Box2D<i32,i32>>
+    // }
+
+    // PDF Coordinate system based on bottom left corner as origin
+    // Get pane_pdf coord adusts the Box2D min max values accordingly
+    let p_cfg : PanePdfConfig = get_pane_pdf_coords(output_window);
 
     // return a PDF output window where all Box2D coords translated from image coord space to PDF coord space
-    let pdf_output_window :Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> = get_pdf_coords(output_window,img_max_y_px);
+    let pdf_output_window :Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> = get_pdf_coords(output_window,p_cfg.max_pane_y_px);
 
     let page_margin_ver_mm = 20.0; // size of top bottom margin
     let page_margin_hor_mm = 20.0;  // size of left right margin
 
-    let imgtile_wid_px :f64 = (img_max_x_px as f64 + 1.0) / win_pane_col_count as f64 / pane_tile_col_count as f64;  // convert img_max_x_px to 1 based instead of 0 based to calc width
-    let imgtile_hgt_px :f64 = (img_max_y_px as f64 + 1.0) / win_pane_row_count as f64 / pane_tile_row_count as f64;  // convert img_max_y_px to 1 based instead of 0 based to calc height
+    let imgtile_wid_px :f64 = (p_cfg.max_pane_x_px as f64 + 1.0) / p_cfg.pane_col_count as f64 / p_cfg.pane_tile_col_count as f64;  // convert p_cfg.max_pane_x_px to 1 based instead of 0 based to calc width
+    let imgtile_hgt_px :f64 = (p_cfg.max_pane_y_px as f64 + 1.0) / p_cfg.pane_row_count as f64 / p_cfg.pane_tile_row_count as f64;  // convert p_cfg.max_pane_y_px to 1 based instead of 0 based to calc height
 
     // based on the image aspect ratio compared to pdf aspect ratio adjust the max width of output image in the pdf file
-    let image_aspect :f64 = (img_max_y_px + 1) as f64 / (img_max_x_px + 1) as f64;  // Add one as pixel dimensions are zero based
+    let image_aspect :f64 = (p_cfg.max_pane_y_px + 1) as f64 / (p_cfg.max_pane_x_px + 1) as f64;  // Add one as pixel dimensions are zero based
     let pdf_doc_aspect : f64 = (doc_height_mm - 2.0 * page_margin_ver_mm) / (doc_width_mm - 2.0 * page_margin_hor_mm);  // adjust for horizontal and vertical page margins
 
     let pdftile_wid_mm : f64;
@@ -300,12 +325,12 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
 
     // want pdf tile height and width to remain proportional to original input imagetile height and width
     if image_aspect < pdf_doc_aspect {
-        pdftile_wid_mm = (doc_width_mm - (2.0 * page_margin_hor_mm)) / win_pane_col_count as f64 / pane_tile_col_count as f64;
+        pdftile_wid_mm = (doc_width_mm - (2.0 * page_margin_hor_mm)) / p_cfg.pane_col_count as f64 / p_cfg.pane_tile_col_count as f64;
         pdftile_hgt_mm = pdftile_wid_mm * imgtile_hgt_px/imgtile_wid_px;
         println!();
         println!("image_aspect {:.4} < pdf_doc_aspect {:.4} -> pdftile_wid_mm: {:.4}, use pdf width to limit output", image_aspect, pdf_doc_aspect, pdftile_wid_mm);
     } else {
-        pdftile_hgt_mm = (doc_height_mm - (2.0 * page_margin_ver_mm)) / win_pane_row_count as f64 / pane_tile_row_count as f64;
+        pdftile_hgt_mm = (doc_height_mm - (2.0 * page_margin_ver_mm)) / p_cfg.pane_row_count as f64 / p_cfg.pane_tile_row_count as f64;
         pdftile_wid_mm = pdftile_hgt_mm * imgtile_wid_px/imgtile_hgt_px;
         println!();
         println!("image_aspect {:.4} => pdf_doc_aspect {:.4} -> pdftile_wid_mm: {:.4}, use pdf height to limit output", image_aspect, pdf_doc_aspect, pdftile_wid_mm);
@@ -318,7 +343,7 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     let scale_factor_wid :f64 = pdftile_wid_pt.0 / imgtile_wid_px;
     let scale_factor_hgt :f64 = pdftile_hgt_pt.0 / imgtile_hgt_px ;
 
-    println!("??--->   img_max_x_px: {:.3},   img_max_y_px: {:.3}", img_max_x_px, img_max_y_px );
+    println!("??--->   p_cfg.max_pane_x_px: {:.3},   p_cfg.max_pane_y_px: {:.3}", p_cfg.max_pane_x_px, p_cfg.max_pane_y_px );
     println!("??---> imgtile_wid_px: {:.3}, imgtile_hgt_px: {:.3}", imgtile_wid_px, imgtile_hgt_px );
     println!("??---> pdftile_wid_mm: {:.3}, pdftile_hgt_mm: {:.3}", pdftile_wid_mm, pdftile_hgt_mm );
     println!("??---> scale_factor_wid: {:.3}, scale_factor_hgt: {:.3}", scale_factor_wid, scale_factor_hgt );
@@ -349,13 +374,13 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     current_layer.set_outline_thickness(2.0);
 
     // for each window pane column draw a vertical line
-    for column in 0..=win_pane_col_count // 0,1,2,3 , zero based
+    for column in 0..= p_cfg.pane_col_count // 0,1,2,3 , zero based
     {
         // Convert Mm into Pt function.
-        let start_x : Pt = Mm(grid_origin_x_mm + column as f64 * pane_tile_col_count as f64 * pdftile_wid_mm as f64).into();
+        let start_x : Pt = Mm(grid_origin_x_mm + column as f64 * p_cfg.pane_tile_col_count as f64 * pdftile_wid_mm as f64).into();
         let start_y : Pt = Mm(grid_origin_y_mm).into();
         let end_x : Pt = start_x.clone();  // drawing a vertical line so x remains the same
-        let end_y : Pt = Mm(grid_origin_y_mm + win_pane_row_count as f64 * pane_tile_row_count as f64 * pdftile_hgt_mm as f64).into();
+        let end_y : Pt = Mm(grid_origin_y_mm + p_cfg.pane_row_count as f64 * p_cfg.pane_tile_row_count as f64 * pdftile_hgt_mm as f64).into();
 
         let line = Line {
             points: get_points_for_line(start_x, start_y, end_x, end_y),
@@ -368,13 +393,13 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     }
 
     // for each window pane row draw a horizontal line
-    for row in 0..=win_pane_row_count // 0,1,2,3 , zero based
+    for row in 0..= p_cfg.pane_row_count // 0,1,2,3 , zero based
     {
-        // println!("---->start_y_pt = ({:.2})+({:.2}) * ({:.2}) * ({:.2}) \ngrid_origin_y_mm + row * pane_tile_row_count * pdftile_hgt_mm", grid_origin_y_mm, row , pane_tile_row_count , pdftile_hgt_mm) ;  //  <--- something wrong here)
+        // println!("---->start_y_pt = ({:.2})+({:.2}) * ({:.2}) * ({:.2}) \ngrid_origin_y_mm + row * p_cfg.pane_tile_row_count * pdftile_hgt_mm", grid_origin_y_mm, row , p_cfg.pane_tile_row_count , pdftile_hgt_mm) ;  //  <--- something wrong here)
         // Convert Mm into Pt function.
         let start_x_pt : Pt = Mm(grid_origin_x_mm).into();
-        let start_y_pt : Pt = Mm(grid_origin_y_mm + row as f64 * pane_tile_row_count as f64 * pdftile_hgt_mm as f64).into();  //  <--- something wrong here
-          let end_x_pt : Pt = Mm(grid_origin_x_mm + win_pane_col_count as f64 * pane_tile_col_count as f64 * pdftile_wid_mm as f64).into();
+        let start_y_pt : Pt = Mm(grid_origin_y_mm + row as f64 * p_cfg.pane_tile_row_count as f64 * pdftile_hgt_mm as f64).into();  //  <--- something wrong here
+          let end_x_pt : Pt = Mm(grid_origin_x_mm + p_cfg.pane_col_count as f64 * p_cfg.pane_tile_col_count as f64 * pdftile_wid_mm as f64).into();
           let end_y_pt : Pt = start_y_pt.clone();  // drawing a horizontal line so y remains the same
 
         let line = Line {
@@ -394,7 +419,7 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     current_layer.set_fill_color(fill_color);
 
     // Write out the pane number to center of pane
-    let pane_no_loc: Vec<(f64,f64,String)> = get_pane_text_loc_px(&window_panes_coords_px );  // returns center point of input image and pane no as a string
+    let pane_no_loc: Vec<(f64,f64,String)> = get_pane_text_loc_px(&p_cfg.window_panes_coords_px );  // returns center point of input image and pane no as a string
     for number in pane_no_loc {
         // Compute new pdf Pane No x,y location. Input px values are translated to pdf origin and scaled to output pdf units.
         let grid_origin_x_pt: Pt = Mm(grid_origin_x_mm).into();
@@ -419,12 +444,12 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
                                           &pane_font,
                                           doc_width_mm,
                                           doc_height_mm,
-                                          img_max_x_px,
-                                          img_max_y_px,
-                                          win_pane_row_count,
-                                          win_pane_col_count,
-                                          pane_tile_col_count,
-                                          pane_tile_row_count);
+                                          p_cfg.max_pane_x_px,
+                                          p_cfg.max_pane_y_px,
+                                          p_cfg.pane_row_count,
+                                          p_cfg.pane_col_count,
+                                          p_cfg.pane_tile_col_count,
+                                          p_cfg.pane_tile_row_count);
     }
 
 }  // construct_window_panes
@@ -871,6 +896,8 @@ fn draw_diag(current_layer: &&PdfLayerReference) {
     draw_circle_with_pts(&current_layer, x3, y2, radi) ;
 } // draw_diag
 
+
+
 // Convert all the Box2D coords from image coord space into PDF coord space.
 // see get_pane_pdf_coords() below for explanation of how this code works
 fn get_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>, max_y: i32) -> Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> {
@@ -912,7 +939,143 @@ fn get_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>, max
 // adust the Box2D min max values accordingly
 // Get the PX cooridinates of each window pane.
 // esentially constructing a Box2D using first tile min loc and last tile max location.
-fn get_pane_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> ) -> (i32,i32, i32,i32, i32,i32, Vec<Box2D<i32,i32>>) {
+// fn get_pane_pdf_coords_orig(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> ) -> (i32,i32, i32,i32, i32,i32, Vec<Box2D<i32,i32>>) {
+fn get_pane_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>) -> PanePdfConfig {
+
+    // grab the max x y dimensions
+    let mut win_max_x : i32 = 0;
+    let mut win_max_y : i32 = 0;
+    let mut tile_row_count :i32 = 0;
+    let mut tile_col_count :i32 = 0;
+
+    for (i, pane) in output_window.iter().enumerate() {
+        let tile_end = pane.last().unwrap().0;
+        if tile_end.max.x > win_max_x {
+            win_max_x = tile_end.max.x;
+        }
+        if tile_end.max.y > win_max_y {
+            win_max_y = tile_end.max.y;
+        }
+        // for the first pane find out the number of tile columns and tile rows
+        if i == 0 {
+            // println!("get_pane_pdf_coords pane {}, {:?}", i, pane) ;
+            get_xy_tile_count(&pane,&mut tile_row_count, &mut tile_col_count);
+        }
+    }
+
+    println!();
+    println!("get_pane_pdf_coords- Each pane is {} row(s) by {} col(s) of tiles", &tile_row_count, &tile_col_count);
+
+    // construct array to let us get PDF Y coord from Image Y Coord
+    let range = 0..=win_max_y;
+    let mut img_y_to_pdf: Vec<i32> = Vec::new();
+    for value in range.rev() {
+      img_y_to_pdf.push(value);
+    }
+
+    // keep count for number of times each pane x and y used as a tile
+    let mut pane_x_coords: HashMap<i32, i32> = HashMap::new();
+    let mut pane_y_coords: HashMap<i32, i32> = HashMap::new();
+
+    let mut ret : Vec<Box2D<i32,i32>> = Vec::new();
+    for (_i, pane) in output_window.iter().enumerate() {
+        let tile_start = pane.first().unwrap().0;
+        let tile_end = pane.last().unwrap().0;
+
+        // Tiles are the same physical box in PDF space or image space.
+        // The min max points describing that box in PDF coords are opposite to those in image coords
+
+        // Image space px
+        //  min(0,0)*******
+        //      *         *
+        //      *         *
+        //      *         *
+        //      ********(1,1)max
+
+        //  derived PDF min/max coords in Image Space
+        //      ********(1,0)max
+        //      *         *
+        //      *         *
+        //      *         *
+        //  min(0,1)*******
+
+        // Translate pdf min max values from image space coords into PDF space coords
+        //  x values are 1 to 1 mapping as x increases left to right for both images and pdf files
+        //  y values are opposite for pdf and image space coords
+        // for example if image space y axis has 4 elements 0,1,2,3 the corresponding pdf space axis will be 3,2,1,0
+        //    image space y axis: 0,1,2,3
+        //      pdf space y axis: 3,2,1,0
+
+        // This sample image space px min/max coords with above 4 element y axis mapping
+        //  min(0,1)*******
+        //      *         *
+        //      *         *
+        //      *         *
+        //      ********(2,3)max
+
+        //   The cooresponding PDF min/max coords after translation into PDF coord Space with above 4 element y axis
+        //      ********(2,2)max
+        //      *         *
+        //      *         *
+        //      *         *
+        //  min(0,0)*******
+
+        // Using this information we can create our new PDF equivalent set of coords
+        // create pdf min/max box with image space coords
+        let pdf_min_x = tile_start.min.x;
+        let pdf_min_y = img_y_to_pdf[tile_end.max.y as usize];
+        let pdf_max_x = tile_end.max.x;
+        let pdf_max_y = img_y_to_pdf[tile_start.min.y as usize];
+
+        // println!("pdf_min (x,y) ({:?},{:?})", &pdf_min_x, &pdf_min_y);
+        // println!("pdf_max (x,y) ({:?},{:?})", &pdf_max_x, &pdf_max_y);
+        // println!("Window max_y {:?}", &win_max_y);
+        // println!("Window max_x {:?}", &win_max_x);
+
+        *pane_x_coords.entry(pdf_min_x).or_insert(0) += 1;
+        *pane_y_coords.entry(pdf_min_y).or_insert(0) += 1;
+
+        *pane_x_coords.entry(pdf_max_x).or_insert(0) += 1;
+        *pane_y_coords.entry(pdf_max_y).or_insert(0) += 1;
+
+        let pdf_min_pt: Point2D<i32,i32> = Point2D::new(pdf_min_x,pdf_min_y);
+        let pdf_max_pt: Point2D<i32,i32> = Point2D::new(pdf_max_x,pdf_max_y);
+
+        let pane_box = Box2D {min: pdf_min_pt, max: pdf_max_pt};
+        &ret.push (pane_box);
+    }
+
+    // all panes do not overlap so (i.e 99 vs 100) so divide by 2 to get actual number of rows and columns
+    // number of rows corresponds to number of discrete y coords values
+    // number of cols corresponds to number of discrete x coords values
+    let win_pane_row_count :i32 = pane_y_coords.len() as i32 / 2 ;
+    let win_pane_col_count :i32 = pane_x_coords.len() as i32 / 2 ;
+    println!();
+    println!{"width pane coords {:?}", &pane_x_coords}; //  width pane coords {0: 4, 99: 4, 100: 4, 199: 4}
+    println!{"height pane coords {:?}", &pane_y_coords} // height pane coords {0: 4, 99: 4, 100: 4, 199: 4}
+    println!();
+    println!("window pane row count: {:?}", &win_pane_row_count);  // pane row count is 1 correct
+    println!("window pane col count: {:?}", &win_pane_col_count);  // pane col count is 3 incorrect... should be something is wrong here
+
+    let res : PanePdfConfig = PanePdfConfig { max_pane_x_px: win_max_x,
+                                              max_pane_y_px: win_max_y,
+                                              pane_row_count: win_pane_row_count,
+                                              pane_col_count: win_pane_col_count,
+                                              pane_tile_row_count: tile_row_count,
+                                              pane_tile_col_count: tile_col_count,
+                                              window_panes_coords_px: ret };
+
+    res
+
+} // get_pane_pdf_coords
+
+
+
+// PDF Coordinate system is based on lower bottom left as being origin
+// adust the Box2D min max values accordingly
+// Get the PX cooridinates of each window pane.
+// esentially constructing a Box2D using first tile min loc and last tile max location.
+fn get_pane_pdf_coords_orig(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> ) -> (i32,i32, i32,i32, i32,i32, Vec<Box2D<i32,i32>>) {
 
     // grab the max x y dimensions
     let mut win_max_x : i32 = 0;
