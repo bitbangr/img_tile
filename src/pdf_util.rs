@@ -320,7 +320,7 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     let scale_factor_wid :f64 = pdftile_wid_pt.0 / imgtile_wid_px;
     let scale_factor_hgt :f64 = pdftile_hgt_pt.0 / imgtile_hgt_px ;
 
-    println!("??--->   p_cfg.max_pane_x_px: {:.3},   p_cfg.max_pane_y_px: {:.3}", p_cfg.max_pane_x_px, p_cfg.max_pane_y_px );
+    println!("??---> p_cfg.max_pane_x_px: {:.3},   p_cfg.max_pane_y_px: {:.3}", p_cfg.max_pane_x_px, p_cfg.max_pane_y_px );
     println!("??---> imgtile_wid_px: {:.3}, imgtile_hgt_px: {:.3}", imgtile_wid_px, imgtile_hgt_px );
     println!("??---> pdftile_wid_mm: {:.3}, pdftile_hgt_mm: {:.3}", pdftile_wid_mm, pdftile_hgt_mm );
     println!("??---> scale_factor_wid: {:.3}, scale_factor_hgt: {:.3}", scale_factor_wid, scale_factor_hgt );
@@ -413,7 +413,6 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     }
 
     // construct a detail summary page for each pane
-    // for (pane_no, pane) in output_window.iter().enumerate() {
     for (pane_no, pane) in pdf_output_window.iter().enumerate() {
             construct_pane_detail_page(pane_no + 1,
                                           &pane,
@@ -421,31 +420,18 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
                                           &pane_font,
                                           doc_width_mm,
                                           doc_height_mm,
-                                          p_cfg.max_pane_x_px,
-                                          p_cfg.max_pane_y_px,
-                                          p_cfg.pane_row_count,
-                                          p_cfg.pane_col_count,
-                                          p_cfg.pane_tile_col_count,
-                                          p_cfg.pane_tile_row_count);
+                                          &p_cfg);
     }
 
 }  // construct_window_panes
 
-
-// Construct the detail page for each pane
 fn construct_pane_detail_page(pane_no: usize,
-                                 pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>,
-                                 doc: &PdfDocumentReference,
-                                 font1: &IndirectFontRef,
-                                 doc_width_mm: f64,
-                                 doc_height_mm: f64,
-                                 img_max_x_px: i32,
-                                 img_max_y_px: i32,
-                                 win_pane_col_count: i32,
-                                 win_pane_row_count: i32,
-                                 pane_tile_col_count: i32,
-                                 pane_tile_row_count: i32
-                             ) -> () {
+                                  pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>,
+                                  doc: &&PdfDocumentReference,
+                                  pane_font: &&IndirectFontRef,
+                                  doc_width_mm: f64,
+                                  doc_height_mm: f64,
+                                  p_cfg: &PanePdfConfig) -> () {
 
     println!("Construct Pane Detail page {}", pane_no);
     // println!("Pane: {:?}", &pane);
@@ -463,11 +449,11 @@ fn construct_pane_detail_page(pane_no: usize,
     let page_margin_left_mm = 20.0; // size of left margin
     let page_margin_right_mm = 50.0; // size of right margin
 
-    let imgtile_wid_px :f64 = (img_max_x_px as f64 + 1.0) / win_pane_col_count as f64 / pane_tile_col_count as f64;  // convert img_max_x_px to 1 based instead of 0 based to calc width
-    let imgtile_hgt_px :f64 = (img_max_y_px as f64 + 1.0) / win_pane_row_count as f64 / pane_tile_row_count as f64;  // convert img_max_y_px to 1 based instead of 0 based to calc height
+    let imgtile_wid_px :f64 = (p_cfg.max_pane_x_px as f64 + 1.0) / p_cfg.pane_col_count as f64 / p_cfg.pane_tile_col_count as f64;  // convert p_cfg.max_pane_x_px to 1 based instead of 0 based to calc width
+    let imgtile_hgt_px :f64 = (p_cfg.max_pane_y_px as f64 + 1.0) / p_cfg.pane_row_count as f64 / p_cfg.pane_tile_row_count as f64;  // convert p_cfg.max_pane_y_px to 1 based instead of 0 based to calc height
 
     // based on the image aspect ratio compared to pdf aspect ratio adjust the max width of output image in the pdf file
-    let image_aspect :f64 = (img_max_y_px + 1) as f64 / (img_max_x_px +1) as f64; // add one as pixel dimensions are zero based.
+    let image_aspect :f64 = (p_cfg.max_pane_y_px + 1) as f64 / (p_cfg.max_pane_x_px + 1) as f64; // add one as pixel dimensions are zero based.
 
     let pdf_doc_aspect : f64 = (doc_height_mm - 2.0 * page_margin_ver_mm) / (doc_width_mm - page_margin_left_mm - page_margin_right_mm);  // adjust for horizontal and vertical page margins
     let pdftile_wid_mm : f64;
@@ -475,13 +461,13 @@ fn construct_pane_detail_page(pane_no: usize,
 
     // want pdf tile height and width to remain proportional to original input imagetile height and width
     if image_aspect < pdf_doc_aspect {
-        pdftile_wid_mm = (doc_width_mm - page_margin_left_mm - page_margin_right_mm) / pane_tile_col_count as f64;
+        pdftile_wid_mm = (doc_width_mm - page_margin_left_mm - page_margin_right_mm) / p_cfg.pane_tile_col_count as f64;
         pdftile_hgt_mm = &pdftile_wid_mm * imgtile_hgt_px/imgtile_wid_px;
         println!();
         println!("image_aspect {:.4} < pdf_doc_aspect {:.4} -> use pdf width to limit output", image_aspect, pdf_doc_aspect);
         println!("pdftile_wid_mm: {:.4}, pdftile_hgt_mm: {:.4}",pdftile_wid_mm, pdftile_hgt_mm);
     } else {
-        pdftile_hgt_mm = (doc_height_mm - (2.0 * page_margin_ver_mm)) / pane_tile_row_count as f64;
+        pdftile_hgt_mm = (doc_height_mm - (2.0 * page_margin_ver_mm)) / p_cfg.pane_tile_row_count as f64;
         pdftile_wid_mm = &pdftile_hgt_mm * imgtile_wid_px/imgtile_hgt_px;
         println!();
         println!("image_aspect {:.4} => pdf_doc_aspect {:.4} -> use pdf height to limit output", image_aspect, pdf_doc_aspect);
@@ -495,7 +481,7 @@ fn construct_pane_detail_page(pane_no: usize,
     let scale_factor_hgt :f64 = pdftile_hgt_pt.0 / imgtile_hgt_px ;
 
     println!();
-    println!("**--->   img_max_x_px: {:.3},   img_max_y_px: {:.3}", img_max_x_px, img_max_y_px );
+    println!("**---> p_cfg.max_pane_x_px: {:.3},   p_cfg.max_pane_y_px: {:.3}", p_cfg.max_pane_x_px, p_cfg.max_pane_y_px );
     println!("**---> imgtile_wid_px: {:.3}, imgtile_hgt_px: {:.3}", imgtile_wid_px, imgtile_hgt_px );
     println!("**---> pdftile_wid_mm: {:.3}, pdftile_hgt_mm: {:.3}", pdftile_wid_mm, pdftile_hgt_mm );
     println!("**---> scale_factor_wid: {:.3}, scale_factor_hgt: {:.3}", scale_factor_wid, scale_factor_hgt );
@@ -513,8 +499,8 @@ fn construct_pane_detail_page(pane_no: usize,
                         grid_origin_y_mm,
                         scale_factor_wid,
                         scale_factor_hgt,
-                        pane_tile_row_count,
-                        pane_tile_col_count,
+                        p_cfg.pane_tile_row_count,
+                        p_cfg.pane_tile_col_count,
                         pdftile_wid_mm,
                         pdftile_hgt_mm);
 
