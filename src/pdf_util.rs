@@ -282,29 +282,6 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
 
     // PDF Coordinate system based on bottom left corner as origin
     // Get pane_pdf coord adusts the Box2D min max values accordingly
-    // let (img_max_x_px, // change to max_pane_x_px
-    //      img_max_y_px, // change to max_pane_y_px
-    //      win_pane_row_count,
-    //      win_pane_col_count,
-    //      pane_tile_row_count,
-    //      pane_tile_col_count,
-    //      window_panes_coords_px) : (i32,i32, // max_x, max_y
-    //                              i32,i32, // pane_count_x, pane_count_y
-    //                              i32,i32, // tile_x_count, tile_y_count
-    //                              Vec<Box2D<i32,i32>>) = get_pane_pdf_coords(output_window);
-
-    // pub struct PanePdfConfig {
-    //      max_pane_x_px: i32,    // img_max_x_px : i32 ,
-    //      max_pane_y_px: i32,    // img_max_y_px : i32,
-    //      pane_row_count : i32,
-    //      pane_col_count : i32,
-    //      pane_tile_row_count : i32,
-    //      pane_tile_col_count :i32 ,
-    //      window_panes_coords_px : Vec<Box2D<i32,i32>>
-    // }
-
-    // PDF Coordinate system based on bottom left corner as origin
-    // Get pane_pdf coord adusts the Box2D min max values accordingly
     let p_cfg : PanePdfConfig = get_pane_pdf_coords(output_window);
 
     // return a PDF output window where all Box2D coords translated from image coord space to PDF coord space
