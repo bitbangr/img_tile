@@ -74,7 +74,7 @@ pub fn create_and_save_test_config(path_str: &str) -> Config {
 }
 
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Copy, Clone, Eq, Hash)]
 pub struct RGB(pub u8,pub u8,pub u8);
 
 impl Display for RGB {
