@@ -425,6 +425,7 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
 
 }  // construct_window_panes
 
+// Construct the detail page for each pane
 fn construct_pane_detail_page(pane_no: usize,
                                   pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>,
                                   doc: &&PdfDocumentReference,
@@ -504,6 +505,18 @@ fn construct_pane_detail_page(pane_no: usize,
                         pdftile_wid_mm,
                         pdftile_hgt_mm);
 
+    draw_pane_legend(pane,
+                     pane_no,
+                     &current_layer,
+                     pane_font,
+                     doc_width_mm,
+                     doc_height_mm,
+                     page_margin_ver_mm,
+                     page_margin_left_mm,
+                     page_margin_right_mm
+                    );
+
+
     // let outline_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
     // current_layer.set_outline_color(outline_color);
     // current_layer.set_outline_thickness(2.0);
@@ -570,7 +583,56 @@ fn construct_pane_detail_page(pane_no: usize,
     //     current_layer.use_text(number.2, 48.0, x_mm, y_mm, &grid_font);
     // }
 
-} // construct_pane_detail_page
+}
+
+fn draw_pane_legend(pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>,
+                    pane_no : usize,
+                    current_layer: &PdfLayerReference,
+                    pane_font: &&IndirectFontRef,
+                    doc_width_mm: f64,
+                    doc_height_mm: f64,
+                    page_margin_ver_mm: f64,
+                    page_margin_left_mm: f64,
+                    page_margin_right_mm: f64) -> () {
+
+    // create list of unique colors ordered by number of times used in the pane
+    let mut pane_tile_colours: HashMap<modtile::RGB, i32> = HashMap::new();
+    for (_i, tile) in pane.iter().enumerate() {
+
+        let tile_rgb = tile.1;
+        *pane_tile_colours.entry(tile_rgb).or_insert(0) += 1;
+
+    }
+
+    println!("draw_pane_legend for page {} " , pane_no);
+    println!("There are {} different colors " , &pane_tile_colours.len());
+
+    // Sort the Colours by the number of times used in pane
+    let mut colour_vec: Vec<(&modtile::RGB, &i32)> = pane_tile_colours.iter().collect();
+    colour_vec.sort_by(|a, b| b.1.cmp(a.1));
+    println!("Pane colors sorted??? {:?}", &colour_vec );
+
+    let fill_color = Color::Rgb(Rgb::new(0.0, 0.0,0.0, None));
+    current_layer.set_fill_color(fill_color);
+
+    let pn: String = format!("Pane {}", pane_no) ;
+    current_layer.use_text(pn, 24.0, Mm(100.0), Mm(6.0), pane_font);
+
+    for (i,tile_rgb) in colour_vec.iter().enumerate() {
+
+        let red = tile_rgb.0.0 as f64;
+        let green = tile_rgb.0.1 as f64;
+        let blue = tile_rgb.0.2 as f64;
+
+        let fill_color = Color::Rgb(Rgb::new(red/255.0, green/255.0,blue/255.0, None));
+        current_layer.set_fill_color(fill_color);
+
+        let ts: String = format!("{}:{}:{} ", i + 1, tile_rgb.0,tile_rgb.1) ;
+        current_layer.use_text(ts, 20.0, Mm(200.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64) - 15.0 * i as f64), pane_font);
+    }
+
+
+} // draw_pane_legend
 
 fn draw_page_marks(current_layer: &&PdfLayerReference, doc_width_as_mm: f64, doc_height_as_mm: f64) -> () {
 
