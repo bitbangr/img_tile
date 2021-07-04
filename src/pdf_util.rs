@@ -561,6 +561,9 @@ fn draw_pane_legend(pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>,
     let pn: String = format!("Pane {}", pane_no) ;
     current_layer.use_text(pn, 24.0, Mm(100.0), Mm(6.0), pane_font);
 
+    let pn: String = format!("There are {} different coloured tiles", &pane_tile_colours.len() ) ;
+    current_layer.use_text(pn, 24.0, Mm(60.0), Mm(205.0), pane_font);
+
     // loop through all the colors and print to legend
     for (i,tile_rgb) in pane_colour_vec.iter().enumerate() {
 
@@ -574,14 +577,22 @@ fn draw_pane_legend(pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>,
         // grab the Color Name from all_colors
         for tc in &all_colors.colors {
             if *tile_rgb.0 == tc.rgb {
+
+                // draw a circle with tile color beside Name String
+                let radius_pt: Pt = Mm(6.0).into();
+
+                let center_x_pt: Pt = Mm(205.0).into();
+                let center_y_pt: Pt = Mm((doc_height_mm as f64 - page_margin_ver_mm as f64) - 15.0 * i as f64).into();
+                draw_circle_with_pts(&current_layer, center_x_pt, center_y_pt, radius_pt) ;
+
                 let tc_name :String = tc.name.to_owned();
                 println!("---> Count: {}, \t {:?}, ", *tile_rgb.1,  tc_name );
 
-                let ts: String = format!("{}. {} - {}", i + 1, tc_name, *tile_rgb.1) ;
-                current_layer.use_text(ts, 20.0, Mm(200.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64) - 15.0 * i as f64), pane_font);
+                let ts: String = format!("{}.   {} - {}", i + 1, tc_name, *tile_rgb.1) ;
+                let fill_color = Color::Rgb(Rgb::new(0.0, 0.0,0.0, None));
+                current_layer.set_fill_color(fill_color);
+                current_layer.use_text(ts, 20.0, Mm(205.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64) - 15.0 * i as f64), pane_font);
 
-                // draw a circle with tile color beside Name String
-                
             }
         };
     }
