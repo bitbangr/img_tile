@@ -39,27 +39,14 @@ fn main() {
         .get_matches();
 
     // load all the config settings from JSON file
-    let configs : modtile::Config = modtile::load_configs(matches.value_of("config").unwrap());
+    let cfg : modtile::Config = modtile::load_configs(matches.value_of("config").unwrap());
 
     println!();
-    println!("Successfully Loaded -> {:?}", configs);
-
-    let tile_colors = configs.tile_colors;
-    let input = configs.input;
-    let output = configs.output;
-    let output_width = configs.output_width;
-    let output_height = configs.output_height;
-    let tile_size_x = configs.tile_size_x;
-    let tile_size_y = configs.tile_size_y;
-    let _tile_space_x = configs.tile_space_x;
-    let _tile_space_y = configs.tile_space_y;
-    let tiles_per_pane_width =  configs.tiles_per_pane_width;
-    let tiles_per_pane_height = configs.tiles_per_pane_height;
-
+    println!("Successfully Loaded Config File -> {:?}", cfg);
 
     // Grab the input image
     // TODO Get some proper error handling here or in function for missing image
-    let input_img = get_image(input).unwrap();
+    let input_img = get_image(cfg.input).unwrap();
     let (img_width, img_height) = input_img.dimensions();
     let input_img_width = img_width as f64;
     let input_img_height = img_height as f64;
@@ -71,7 +58,7 @@ fn main() {
     // determine the largest output box dimensions that will maintain the input image aspect ratio.
     // and resize the output image accordingly
     // strange behaviour noted so use with care.  Best to make sure op is some close ratio to input
-    let (output_width, output_height) =  get_max_box(input_img_width, input_img_height , output_width, output_height);
+    let (output_width, output_height) =  get_max_box(input_img_width, input_img_height , cfg.output_width, cfg.output_height);
     println!();
     println!("output image width: {}\noutput image height: {}", &output_width,&output_height );
 
@@ -79,10 +66,10 @@ fn main() {
     // Less than .5 rounds down, More than .5 rounds up
     // so if less than half a tile it is left out
     // if more than half a tile it is included
-    let output_width_tile_count : usize = (output_width/(tile_size_x )).round() as usize; // Should account for spacing of tiles
-    let output_height_tile_count : usize = (output_height/(tile_size_y)).round() as usize;
+    let output_width_tile_count : usize = (output_width/(cfg.tile_size_x )).round() as usize; // Should account for spacing of tiles
+    let output_height_tile_count : usize = (output_height/(cfg.tile_size_y)).round() as usize;
     println!();
-    println!("tile size x:{}\ntile size y:{}", tile_size_x, tile_size_y);
+    println!("tile size x:{}\ntile size y:{}", cfg.tile_size_x, cfg.tile_size_y);
     println!();
     println!("output image width: {} , width tile count: {}\noutput image height: {} , height tile count: {}", output_width,
                                                                                                         output_width_tile_count,
@@ -105,8 +92,8 @@ fn main() {
                                                             input_img_height,
                                                             output_width_tile_count,
                                                             output_height_tile_count,
-                                                            tiles_per_pane_width,
-                                                            tiles_per_pane_height);
+                                                            cfg.tiles_per_pane_width,
+                                                            cfg.tiles_per_pane_height);
 
 
     // println!("************************");
@@ -129,8 +116,8 @@ fn main() {
                                                             output_height,
                                                             output_width_tile_count,
                                                             output_height_tile_count,
-                                                            tiles_per_pane_width,
-                                                            tiles_per_pane_height);
+                                                            cfg.tiles_per_pane_width,
+                                                            cfg.tiles_per_pane_height);
 
     // println!("************************");
     // println!("***** Output Window ****");
@@ -151,7 +138,7 @@ fn main() {
     // println!("************************\n");
 
     // load the tile colors_path
-    let all_colors: modtile::AllColors = modtile::load_all_colors(&tile_colors.to_string().to_owned());
+    let all_colors: modtile::AllColors = modtile::load_all_colors(&cfg.tile_colors.to_string().to_owned());
     // for (j, tile_color) in all_colors.colors.iter().enumerate() {
     //     println!("tile color:{}, {:?}",j+1, tile_color);
     // }
@@ -174,7 +161,8 @@ fn main() {
     let kd_tree = construct_kd_tree(&mut color_vec[..], 3);
 
     // keep count for number of times each color used as a tile
-    let mut tile_color_count: HashMap<&Vec<u8>, i32> = HashMap::new();
+    // let mut tile_color_count: HashMap<&Vec<u8>, i32> = HashMap::new();
+    let mut tile_color_count: HashMap<Vec<u8>, i32> = HashMap::new();
 
     // save a window pane ordered list of output tile colours
     // top left hand corner is first tile.
@@ -204,11 +192,11 @@ fn main() {
             let avg_col = get_avg_col(&input_image_buffer, &tile.0);
 
             // get the closes color match
-            let color_tup = query_nearest_neighbor(&[avg_col[0],avg_col[1],avg_col[2]], &kd_tree, 3, kd_tree.root()).value();
+            let color_tup :Vec<u8> = query_nearest_neighbor(&[avg_col[0],avg_col[1],avg_col[2]], &kd_tree, 3, kd_tree.root()).value().clone();
             // println!("color_tup {:?}", &color_tup);
 
             // keep running count of each tile color used
-            *tile_color_count.entry(color_tup).or_insert(0) += 1;
+            *tile_color_count.entry(color_tup.clone()).or_insert(0) += 1;
 
             let cm_red = color_tup[0] as u8;
             let cm_yellow = color_tup[1] as u8;
@@ -257,13 +245,14 @@ fn main() {
 
     // Save the resulting image.  We'll also want to use this to create our ouptput PDF instructions doc
     // Add proper error handling for image
-    let save_path = Path::new(&output);
+    let save_path = Path::new(&cfg.output);
     println!("save_path {:#?}", &save_path.to_str() );
     out_img.save(save_path).unwrap();
 
     // create a vector of output colors and sort it by usage count
-    let mut tile_color_count_vec: Vec<(&&Vec<u8>, &i32)> = tile_color_count.iter().collect();
-    tile_color_count_vec.sort_by(|a, b| b.1.cmp(a.1));
+    // let mut tile_color_count_vec: Vec<(&&Vec<u8>, &i32)> = tile_color_count.iter().collect();
+    let mut tile_color_count_vec: Vec<(Vec<u8>, i32)> = tile_color_count.into_iter().collect();
+    tile_color_count_vec.sort_by(|a, b| b.1.cmp(&a.1));
 
     // we want to print out detailed TileColor info (not just rgb value and count)
     println!();
@@ -283,7 +272,7 @@ fn main() {
     // Create the output instructions doc
     // pdf_util::build_output_pdf(&save_path,&all_colors,&tile_color_count_vec,&output_window);
     // Changed from output window to input window to simplify PDF to image space cooridinates translation
-    pdf_util::build_output_pdf(&save_path,&all_colors,&tile_color_count_vec,&input_window);
+    pdf_util::build_output_pdf(&save_path,&all_colors,tile_color_count_vec,&input_window);
 
 } // end main
 
