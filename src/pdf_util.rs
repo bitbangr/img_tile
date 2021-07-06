@@ -7,6 +7,7 @@ use std::io::BufWriter;
 use regex::Regex;
 use std::option::Option::Some;use crate::modtile;
 use euclid::{Point2D,Box2D};
+use itertools::Itertools;
 
 #[derive(PartialEq, Debug)]
 pub struct PanePdfConfig {
@@ -190,7 +191,8 @@ fn draw_layer1_swatches(layer1: &PdfLayerReference,
 //  4. Create a detail summary page for each pane with Tile color and number and tile legend
 pub(crate) fn build_output_pdf(save_path: &std::path::Path,
                                all_colors: &modtile::AllColors,
-                               _tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,
+                               // tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,
+                               tile_color_count_vec: Vec<(Vec<u8>, i32)>,
                                output_window: &Vec<Vec<(euclid::Box2D<i32, i32>, modtile::RGB)>>) -> () {
 
     let doc_width_mm = 279.4;
@@ -213,7 +215,7 @@ pub(crate) fn build_output_pdf(save_path: &std::path::Path,
     current_layer.set_outline_thickness(2.0);
 
     // construct a grid of window panes on current layer
-    construct_window_panes(&current_layer, &doc, doc_width_mm,doc_height_mm , &font1 , all_colors, output_window);
+    construct_window_panes(&current_layer, &doc, doc_width_mm,doc_height_mm , &font1 , all_colors, tile_color_count_vec,  output_window);
 
     // save build instructions to same output file name but with pdf extension
     let fileout = save_path.with_extension("pdf");
@@ -269,6 +271,8 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
                          doc_height_mm: f64,
                          pane_font: &IndirectFontRef,
                          all_colors: &modtile::AllColors,
+                         // tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,
+                         tile_color_count_vec: Vec<(Vec<u8>, i32)>,
                          output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>) -> () {
 
     println!();
@@ -420,6 +424,7 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
                                           &doc,
                                           &pane_font,
                                           all_colors,
+                                          &tile_color_count_vec,
                                           doc_width_mm,
                                           doc_height_mm,
                                           &p_cfg);
@@ -433,6 +438,8 @@ fn construct_pane_detail_page(pane_no: usize,
                                   doc: &&PdfDocumentReference,
                                   pane_font: &&IndirectFontRef,
                                   all_colors: &modtile::AllColors,
+                                  // tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,
+                                  tile_color_count_vec: &Vec<(Vec<u8>, i32)>,
                                   doc_width_mm: f64,
                                   doc_height_mm: f64,
                                   p_cfg: &PanePdfConfig) -> () {
@@ -452,7 +459,6 @@ fn construct_pane_detail_page(pane_no: usize,
     let page_margin_ver_mm = 20.0; // size of top bottom margin
     let page_margin_left_mm = 20.0; // size of left margin
     let page_margin_right_mm = 50.0; // size of right margin
-
 
     let imgtile_wid_px :f64 = (p_cfg.max_pane_x_px as f64 + 1.0) / p_cfg.pane_col_count as f64 / p_cfg.pane_tile_col_count as f64;  // convert p_cfg.max_pane_x_px to 1 based instead of 0 based to calc width
     let imgtile_hgt_px :f64 = (p_cfg.max_pane_y_px as f64 + 1.0) / p_cfg.pane_row_count as f64 / p_cfg.pane_tile_row_count as f64;  // convert p_cfg.max_pane_y_px to 1 based instead of 0 based to calc height
@@ -506,6 +512,7 @@ fn construct_pane_detail_page(pane_no: usize,
 
     draw_pane_circles(&pane,
                         &&current_layer,
+                        pane_font,
                         grid_origin_x_mm,
                         grid_origin_y_mm,
                         scale_factor_wid,
@@ -513,7 +520,9 @@ fn construct_pane_detail_page(pane_no: usize,
                         p_cfg.pane_tile_row_count,
                         p_cfg.pane_tile_col_count,
                         pdftile_wid_mm,
-                        pdftile_hgt_mm);
+                        pdftile_hgt_mm,
+                        all_colors,
+                        tile_color_count_vec);
 
     draw_pane_legend(pane,
                      pane_no,
@@ -524,7 +533,8 @@ fn construct_pane_detail_page(pane_no: usize,
                      page_margin_ver_mm,
                      page_margin_left_mm,
                      page_margin_right_mm,
-                     all_colors
+                     all_colors,
+                     tile_color_count_vec
                     );
 
 } // construct_pane_detail_page
@@ -539,7 +549,9 @@ fn draw_pane_legend(pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>,
                     page_margin_ver_mm: f64,
                     page_margin_left_mm: f64,
                     page_margin_right_mm: f64,
-                    all_colors: &modtile::AllColors) -> () {
+                    all_colors: &modtile::AllColors,
+                    // tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,) -> () {
+                    tile_color_count_vec: &Vec<(Vec<u8>, i32)>,) -> () {
 
     // create list of unique colors ordered by number of times used in the pane
     let mut pane_tile_colours: HashMap<modtile::RGB, i32> = HashMap::new();
@@ -564,6 +576,9 @@ fn draw_pane_legend(pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>,
     let pn: String = format!("There are {} different coloured tiles", &pane_tile_colours.len() ) ;
     current_layer.use_text(pn, 24.0, Mm(60.0), Mm(205.0), pane_font);
 
+    // split tile_color_count_vec into two separate vecs
+    let (tile_colors, _count) : (Vec<&Vec<u8>>,Vec<&i32>) = tile_color_count_vec.iter().map(|&(ref a, ref b)| (a, b)).unzip();
+
     // loop through all the colors and print to legend
     for (i,tile_rgb) in pane_colour_vec.iter().enumerate() {
 
@@ -586,12 +601,16 @@ fn draw_pane_legend(pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>,
                 draw_circle_with_pts(&current_layer, center_x_pt, center_y_pt, radius_pt) ;
 
                 let tc_name :String = tc.name.to_owned();
-                println!("---> Count: {}, \t {:?}, ", *tile_rgb.1,  tc_name );
+                // println!("---> Count: {}, \t {:?}, ", *tile_rgb.1,  tc_name );
 
-                let ts: String = format!("{}.   {} - {}", i + 1, tc_name, *tile_rgb.1) ;
+                let t : Vec<u8> =  vec![tile_rgb.0.0, tile_rgb.0.1 , tile_rgb.0.2 ];
+                let pos = &tile_colors.iter().position(|rgb| **rgb == t );
+
+                // let ts: String = format!("{}.   {} - {}", i + 1, tc_name, *tile_rgb.1) ;
+                let ts: String = format!("{}   {} - {}", pos.unwrap().to_string(), tc_name, *tile_rgb.1) ;
                 let fill_color = Color::Rgb(Rgb::new(0.0, 0.0,0.0, None));
                 current_layer.set_fill_color(fill_color);
-                current_layer.use_text(ts, 20.0, Mm(205.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64) - 15.0 * i as f64), pane_font);
+                current_layer.use_text(ts, 20.0, Mm(203.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 1.0) - 15.0 * i as f64), pane_font);
 
             }
         };
@@ -721,6 +740,7 @@ fn draw_tiles(pdf_output_window: &Vec<Vec<(Box2D<i32, i32>,
 // Copy of draw_summary_circles using scale scale_factor_wid
 fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
                         current_layer: &&PdfLayerReference,
+                        pane_font: &&IndirectFontRef,
                         grid_origin_x_mm: f64,
                         grid_origin_y_mm: f64,
                         scale_factor_wid: f64,
@@ -728,7 +748,10 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
                         pane_tile_row_count: i32,
                         pane_tile_col_count: i32,
                         pdftile_wid_mm: f64,
-                        pdftile_hgt_mm: f64) -> () {
+                        pdftile_hgt_mm: f64,
+                        all_colors: &modtile::AllColors,
+                        tile_color_count_vec: &Vec<(Vec<u8>,i32)>,) -> () {
+                        // tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,) -> () {
 
     // convert to Pt for strong typing
     let grid_origin_x_pt: Pt = Mm(grid_origin_x_mm).into();
@@ -745,6 +768,11 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
     //  simply subtracting the min x,y value of the "Origin Pane" from all the tile x,y values
     let x_transpose: i32 = origin_tile.min.x;
     let y_transpose: i32 = origin_tile.min.y;
+
+    // split vec into two separate vecs
+    let (tile_colors, _count) : (Vec<&Vec<u8>>,Vec<&i32>) = tile_color_count_vec.iter().map(|&(ref a, ref b)| (a, b)).unzip();
+    // println!("---> tile_colors {:?}", &tile_colors);
+    // println!("---> count {:?}", count);
 
     for (_i, tile) in pdf_output_pane.iter().enumerate() {
 
@@ -768,6 +796,21 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
             let center_x_pt: Pt = Pt((tile_box.center().x - x_transpose) as f64 * scale_factor_wid + grid_origin_x_pt.0);
             let center_y_pt: Pt = Pt((tile_box.center().y - y_transpose) as f64 * scale_factor_hgt + grid_origin_y_pt.0);
             draw_circle_with_pts(&current_layer, center_x_pt, center_y_pt, radius_pt) ;
+
+            // Draw text with number inside circle
+            // grab the Color Number vector of tile colors used to create mosaic
+            let t : Vec<u8> =  vec![tile_rgb.0, tile_rgb.1 , tile_rgb.2 ];
+            let pos = &tile_colors.iter().position(|rgb| **rgb == t );
+
+            for tc in &all_colors.colors {
+                if tile_rgb == tc.rgb {
+                    // println!("--->pos {:?} Name {}", pos, tc.name.to_owned());
+                    let tile_no: String = format!("{}", pos.unwrap().to_string()) ;
+                    let fill_color = Color::Rgb(Rgb::new(255.0, 255.0,255.0, None));
+                    current_layer.set_fill_color(fill_color);
+                    current_layer.use_text(tile_no, 20.0, center_x_pt.into() , center_y_pt.into() , pane_font);
+                }
+            };
 
             // // Debug stuff
             // if i < 10
