@@ -7,7 +7,6 @@ use std::io::BufWriter;
 use regex::Regex;
 use std::option::Option::Some;use crate::modtile;
 use euclid::{Point2D,Box2D};
-use itertools::Itertools;
 
 #[derive(PartialEq, Debug)]
 pub struct PanePdfConfig {
@@ -191,7 +190,6 @@ fn draw_layer1_swatches(layer1: &PdfLayerReference,
 //  4. Create a detail summary page for each pane with Tile color and number and tile legend
 pub(crate) fn build_output_pdf(save_path: &std::path::Path,
                                all_colors: &modtile::AllColors,
-                               // tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,
                                tile_color_count_vec: Vec<(Vec<u8>, i32)>,
                                output_window: &Vec<Vec<(euclid::Box2D<i32, i32>, modtile::RGB)>>) -> () {
 
@@ -271,7 +269,6 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
                          doc_height_mm: f64,
                          pane_font: &IndirectFontRef,
                          all_colors: &modtile::AllColors,
-                         // tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,
                          tile_color_count_vec: Vec<(Vec<u8>, i32)>,
                          output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>) -> () {
 
@@ -438,7 +435,6 @@ fn construct_pane_detail_page(pane_no: usize,
                                   doc: &&PdfDocumentReference,
                                   pane_font: &&IndirectFontRef,
                                   all_colors: &modtile::AllColors,
-                                  // tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,
                                   tile_color_count_vec: &Vec<(Vec<u8>, i32)>,
                                   doc_width_mm: f64,
                                   doc_height_mm: f64,
@@ -544,13 +540,12 @@ fn draw_pane_legend(pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>,
                     pane_no : usize,
                     current_layer: &PdfLayerReference,
                     pane_font: &&IndirectFontRef,
-                    doc_width_mm: f64,
+                    _doc_width_mm: f64,
                     doc_height_mm: f64,
                     page_margin_ver_mm: f64,
-                    page_margin_left_mm: f64,
-                    page_margin_right_mm: f64,
+                    _page_margin_left_mm: f64,
+                    _page_margin_right_mm: f64,
                     all_colors: &modtile::AllColors,
-                    // tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,) -> () {
                     tile_color_count_vec: &Vec<(Vec<u8>, i32)>,) -> () {
 
     // create list of unique colors ordered by number of times used in the pane
@@ -751,7 +746,6 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
                         pdftile_hgt_mm: f64,
                         all_colors: &modtile::AllColors,
                         tile_color_count_vec: &Vec<(Vec<u8>,i32)>,) -> () {
-                        // tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,) -> () {
 
     // convert to Pt for strong typing
     let grid_origin_x_pt: Pt = Mm(grid_origin_x_mm).into();
