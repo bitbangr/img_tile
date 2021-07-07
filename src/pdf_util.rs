@@ -8,6 +8,17 @@ use regex::Regex;
 use std::option::Option::Some;use crate::modtile;
 use euclid::{Point2D,Box2D};
 
+#[derive(PartialEq, Debug)]
+pub struct PanePdfConfig {
+     max_pane_x_px: i32,    // img_max_x_px : i32 ,
+     max_pane_y_px: i32,    // img_max_y_px : i32,
+     pane_row_count : i32,
+     pane_col_count : i32,
+     pane_tile_row_count : i32,
+     pane_tile_col_count :i32 ,
+     window_panes_coords_px : Vec<Box2D<i32,i32>>
+}
+
 pub(crate) fn generate_color_swatch(all_colors: &crate::modtile::AllColors) -> Result<(), String> {
 
     let x_mm = 215.9;
@@ -179,7 +190,7 @@ fn draw_layer1_swatches(layer1: &PdfLayerReference,
 //  4. Create a detail summary page for each pane with Tile color and number and tile legend
 pub(crate) fn build_output_pdf(save_path: &std::path::Path,
                                all_colors: &modtile::AllColors,
-                               _tile_color_count_vec: &Vec<(&&Vec<u8>, &i32)>,
+                               tile_color_count_vec: Vec<(Vec<u8>, i32)>,
                                output_window: &Vec<Vec<(euclid::Box2D<i32, i32>, modtile::RGB)>>) -> () {
 
     let doc_width_mm = 279.4;
@@ -202,7 +213,7 @@ pub(crate) fn build_output_pdf(save_path: &std::path::Path,
     current_layer.set_outline_thickness(2.0);
 
     // construct a grid of window panes on current layer
-    construct_window_panes(&current_layer, &doc, doc_width_mm,doc_height_mm , &font1 , output_window);
+    construct_window_panes(&current_layer, &doc, doc_width_mm,doc_height_mm , &font1 , all_colors, tile_color_count_vec,  output_window);
 
     // save build instructions to same output file name but with pdf extension
     let fileout = save_path.with_extension("pdf");
@@ -257,6 +268,8 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
                          doc_width_mm: f64,
                          doc_height_mm: f64,
                          pane_font: &IndirectFontRef,
+                         all_colors: &modtile::AllColors,
+                         tile_color_count_vec: Vec<(Vec<u8>, i32)>,
                          output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>) -> () {
 
     println!();
@@ -271,28 +284,19 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
 
     // PDF Coordinate system based on bottom left corner as origin
     // Get pane_pdf coord adusts the Box2D min max values accordingly
-    let (img_max_x_px,
-         img_max_y_px,
-         win_pane_row_count,
-         win_pane_col_count,
-         pane_tile_row_count,
-         pane_tile_col_count,
-         window_panes_coords_px) : (i32,i32, // max_x, max_y
-                                 i32,i32, // pane_count_x, pane_count_y
-                                 i32,i32, // tile_x_count, tile_y_count
-                                 Vec<Box2D<i32,i32>>) = get_pane_pdf_coords(output_window);
+    let p_cfg : PanePdfConfig = get_pane_pdf_coords(output_window);
 
     // return a PDF output window where all Box2D coords translated from image coord space to PDF coord space
-    let pdf_output_window :Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> = get_pdf_coords(output_window,img_max_y_px);
+    let pdf_output_window :Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> = get_pdf_coords(output_window,p_cfg.max_pane_y_px);
 
     let page_margin_ver_mm = 20.0; // size of top bottom margin
     let page_margin_hor_mm = 20.0;  // size of left right margin
 
-    let imgtile_wid_px :f64 = (img_max_x_px as f64 + 1.0) / win_pane_col_count as f64 / pane_tile_col_count as f64;  // convert img_max_x_px to 1 based instead of 0 based to calc width
-    let imgtile_hgt_px :f64 = (img_max_y_px as f64 + 1.0) / win_pane_row_count as f64 / pane_tile_row_count as f64;  // convert img_max_y_px to 1 based instead of 0 based to calc height
+    let imgtile_wid_px :f64 = (p_cfg.max_pane_x_px as f64 + 1.0) / p_cfg.pane_col_count as f64 / p_cfg.pane_tile_col_count as f64;  // convert p_cfg.max_pane_x_px to 1 based instead of 0 based to calc width
+    let imgtile_hgt_px :f64 = (p_cfg.max_pane_y_px as f64 + 1.0) / p_cfg.pane_row_count as f64 / p_cfg.pane_tile_row_count as f64;  // convert p_cfg.max_pane_y_px to 1 based instead of 0 based to calc height
 
     // based on the image aspect ratio compared to pdf aspect ratio adjust the max width of output image in the pdf file
-    let image_aspect :f64 = (img_max_y_px + 1) as f64 / (img_max_x_px + 1) as f64;  // Add one as pixel dimensions are zero based
+    let image_aspect :f64 = (p_cfg.max_pane_y_px + 1) as f64 / (p_cfg.max_pane_x_px + 1) as f64;  // Add one as pixel dimensions are zero based
     let pdf_doc_aspect : f64 = (doc_height_mm - 2.0 * page_margin_ver_mm) / (doc_width_mm - 2.0 * page_margin_hor_mm);  // adjust for horizontal and vertical page margins
 
     let pdftile_wid_mm : f64;
@@ -300,12 +304,12 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
 
     // want pdf tile height and width to remain proportional to original input imagetile height and width
     if image_aspect < pdf_doc_aspect {
-        pdftile_wid_mm = (doc_width_mm - (2.0 * page_margin_hor_mm)) / win_pane_col_count as f64 / pane_tile_col_count as f64;
+        pdftile_wid_mm = (doc_width_mm - (2.0 * page_margin_hor_mm)) / p_cfg.pane_col_count as f64 / p_cfg.pane_tile_col_count as f64;
         pdftile_hgt_mm = pdftile_wid_mm * imgtile_hgt_px/imgtile_wid_px;
         println!();
         println!("image_aspect {:.4} < pdf_doc_aspect {:.4} -> pdftile_wid_mm: {:.4}, use pdf width to limit output", image_aspect, pdf_doc_aspect, pdftile_wid_mm);
     } else {
-        pdftile_hgt_mm = (doc_height_mm - (2.0 * page_margin_ver_mm)) / win_pane_row_count as f64 / pane_tile_row_count as f64;
+        pdftile_hgt_mm = (doc_height_mm - (2.0 * page_margin_ver_mm)) / p_cfg.pane_row_count as f64 / p_cfg.pane_tile_row_count as f64;
         pdftile_wid_mm = pdftile_hgt_mm * imgtile_wid_px/imgtile_hgt_px;
         println!();
         println!("image_aspect {:.4} => pdf_doc_aspect {:.4} -> pdftile_wid_mm: {:.4}, use pdf height to limit output", image_aspect, pdf_doc_aspect, pdftile_wid_mm);
@@ -318,7 +322,7 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     let scale_factor_wid :f64 = pdftile_wid_pt.0 / imgtile_wid_px;
     let scale_factor_hgt :f64 = pdftile_hgt_pt.0 / imgtile_hgt_px ;
 
-    println!("??--->   img_max_x_px: {:.3},   img_max_y_px: {:.3}", img_max_x_px, img_max_y_px );
+    println!("??---> p_cfg.max_pane_x_px: {:.3},   p_cfg.max_pane_y_px: {:.3}", p_cfg.max_pane_x_px, p_cfg.max_pane_y_px );
     println!("??---> imgtile_wid_px: {:.3}, imgtile_hgt_px: {:.3}", imgtile_wid_px, imgtile_hgt_px );
     println!("??---> pdftile_wid_mm: {:.3}, pdftile_hgt_mm: {:.3}", pdftile_wid_mm, pdftile_hgt_mm );
     println!("??---> scale_factor_wid: {:.3}, scale_factor_hgt: {:.3}", scale_factor_wid, scale_factor_hgt );
@@ -349,13 +353,13 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     current_layer.set_outline_thickness(2.0);
 
     // for each window pane column draw a vertical line
-    for column in 0..=win_pane_col_count // 0,1,2,3 , zero based
+    for column in 0..= p_cfg.pane_col_count // 0,1,2,3 , zero based
     {
         // Convert Mm into Pt function.
-        let start_x : Pt = Mm(grid_origin_x_mm + column as f64 * pane_tile_col_count as f64 * pdftile_wid_mm as f64).into();
+        let start_x : Pt = Mm(grid_origin_x_mm + column as f64 * p_cfg.pane_tile_col_count as f64 * pdftile_wid_mm as f64).into();
         let start_y : Pt = Mm(grid_origin_y_mm).into();
         let end_x : Pt = start_x.clone();  // drawing a vertical line so x remains the same
-        let end_y : Pt = Mm(grid_origin_y_mm + win_pane_row_count as f64 * pane_tile_row_count as f64 * pdftile_hgt_mm as f64).into();
+        let end_y : Pt = Mm(grid_origin_y_mm + p_cfg.pane_row_count as f64 * p_cfg.pane_tile_row_count as f64 * pdftile_hgt_mm as f64).into();
 
         let line = Line {
             points: get_points_for_line(start_x, start_y, end_x, end_y),
@@ -368,13 +372,13 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     }
 
     // for each window pane row draw a horizontal line
-    for row in 0..=win_pane_row_count // 0,1,2,3 , zero based
+    for row in 0..= p_cfg.pane_row_count // 0,1,2,3 , zero based
     {
-        // println!("---->start_y_pt = ({:.2})+({:.2}) * ({:.2}) * ({:.2}) \ngrid_origin_y_mm + row * pane_tile_row_count * pdftile_hgt_mm", grid_origin_y_mm, row , pane_tile_row_count , pdftile_hgt_mm) ;  //  <--- something wrong here)
+        // println!("---->start_y_pt = ({:.2})+({:.2}) * ({:.2}) * ({:.2}) \ngrid_origin_y_mm + row * p_cfg.pane_tile_row_count * pdftile_hgt_mm", grid_origin_y_mm, row , p_cfg.pane_tile_row_count , pdftile_hgt_mm) ;  //  <--- something wrong here)
         // Convert Mm into Pt function.
         let start_x_pt : Pt = Mm(grid_origin_x_mm).into();
-        let start_y_pt : Pt = Mm(grid_origin_y_mm + row as f64 * pane_tile_row_count as f64 * pdftile_hgt_mm as f64).into();  //  <--- something wrong here
-          let end_x_pt : Pt = Mm(grid_origin_x_mm + win_pane_col_count as f64 * pane_tile_col_count as f64 * pdftile_wid_mm as f64).into();
+        let start_y_pt : Pt = Mm(grid_origin_y_mm + row as f64 * p_cfg.pane_tile_row_count as f64 * pdftile_hgt_mm as f64).into();  //  <--- something wrong here
+          let end_x_pt : Pt = Mm(grid_origin_x_mm + p_cfg.pane_col_count as f64 * p_cfg.pane_tile_col_count as f64 * pdftile_wid_mm as f64).into();
           let end_y_pt : Pt = start_y_pt.clone();  // drawing a horizontal line so y remains the same
 
         let line = Line {
@@ -394,7 +398,7 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     current_layer.set_fill_color(fill_color);
 
     // Write out the pane number to center of pane
-    let pane_no_loc: Vec<(f64,f64,String)> = get_pane_text_loc_px(&window_panes_coords_px );  // returns center point of input image and pane no as a string
+    let pane_no_loc: Vec<(f64,f64,String)> = get_pane_text_loc_px(&p_cfg.window_panes_coords_px );  // returns center point of input image and pane no as a string
     for number in pane_no_loc {
         // Compute new pdf Pane No x,y location. Input px values are translated to pdf origin and scaled to output pdf units.
         let grid_origin_x_pt: Pt = Mm(grid_origin_x_mm).into();
@@ -411,39 +415,30 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     }
 
     // construct a detail summary page for each pane
-    // for (pane_no, pane) in output_window.iter().enumerate() {
     for (pane_no, pane) in pdf_output_window.iter().enumerate() {
             construct_pane_detail_page(pane_no + 1,
                                           &pane,
                                           &doc,
                                           &pane_font,
+                                          all_colors,
+                                          &tile_color_count_vec,
                                           doc_width_mm,
                                           doc_height_mm,
-                                          img_max_x_px,
-                                          img_max_y_px,
-                                          win_pane_row_count,
-                                          win_pane_col_count,
-                                          pane_tile_col_count,
-                                          pane_tile_row_count);
+                                          &p_cfg);
     }
 
 }  // construct_window_panes
 
-
 // Construct the detail page for each pane
 fn construct_pane_detail_page(pane_no: usize,
-                                 pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>,
-                                 doc: &PdfDocumentReference,
-                                 font1: &IndirectFontRef,
-                                 doc_width_mm: f64,
-                                 doc_height_mm: f64,
-                                 img_max_x_px: i32,
-                                 img_max_y_px: i32,
-                                 win_pane_col_count: i32,
-                                 win_pane_row_count: i32,
-                                 pane_tile_col_count: i32,
-                                 pane_tile_row_count: i32
-                             ) -> () {
+                                  pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>,
+                                  doc: &&PdfDocumentReference,
+                                  pane_font: &&IndirectFontRef,
+                                  all_colors: &modtile::AllColors,
+                                  tile_color_count_vec: &Vec<(Vec<u8>, i32)>,
+                                  doc_width_mm: f64,
+                                  doc_height_mm: f64,
+                                  p_cfg: &PanePdfConfig) -> () {
 
     println!("Construct Pane Detail page {}", pane_no);
     // println!("Pane: {:?}", &pane);
@@ -454,32 +449,38 @@ fn construct_pane_detail_page(pane_no: usize,
     // draw a simple quarter arc at (0,0). Leave as a "makers mark"
     draw_quarter_arc(&&current_layer);
 
-    // draw some cross marks to aid in element placement
-    draw_page_marks(&&current_layer,doc_width_mm,doc_height_mm);
+    // draw some cross marks to aid in element placement  comment out following line if pane detail without color fill circles
+    draw_page_marks(&&current_layer,doc_width_mm,doc_height_mm);  // pane detail with color fill circles
 
     let page_margin_ver_mm = 20.0; // size of top bottom margin
     let page_margin_left_mm = 20.0; // size of left margin
     let page_margin_right_mm = 50.0; // size of right margin
 
-    let imgtile_wid_px :f64 = (img_max_x_px as f64 + 1.0) / win_pane_col_count as f64 / pane_tile_col_count as f64;  // convert img_max_x_px to 1 based instead of 0 based to calc width
-    let imgtile_hgt_px :f64 = (img_max_y_px as f64 + 1.0) / win_pane_row_count as f64 / pane_tile_row_count as f64;  // convert img_max_y_px to 1 based instead of 0 based to calc height
+    let imgtile_wid_px :f64 = (p_cfg.max_pane_x_px as f64 + 1.0) / p_cfg.pane_col_count as f64 / p_cfg.pane_tile_col_count as f64;  // convert p_cfg.max_pane_x_px to 1 based instead of 0 based to calc width
+    let imgtile_hgt_px :f64 = (p_cfg.max_pane_y_px as f64 + 1.0) / p_cfg.pane_row_count as f64 / p_cfg.pane_tile_row_count as f64;  // convert p_cfg.max_pane_y_px to 1 based instead of 0 based to calc height
 
     // based on the image aspect ratio compared to pdf aspect ratio adjust the max width of output image in the pdf file
-    let image_aspect :f64 = (img_max_y_px + 1) as f64 / (img_max_x_px +1) as f64; // add one as pixel dimensions are zero based.
+    let image_aspect :f64 = (p_cfg.max_pane_y_px + 1) as f64 / (p_cfg.max_pane_x_px + 1) as f64; // add one as pixel dimensions are zero based.
 
     let pdf_doc_aspect : f64 = (doc_height_mm - 2.0 * page_margin_ver_mm) / (doc_width_mm - page_margin_left_mm - page_margin_right_mm);  // adjust for horizontal and vertical page margins
     let pdftile_wid_mm : f64;
     let pdftile_hgt_mm : f64;
 
+    // TODO mgj 030721 There is an issue below with the following code in that the right margin is not accounted for
+    // when image aspect ratio is greater than pdf_doc aspect
+    // Test with following setting
+    // let page_margin_right_mm = 150.0; // size of right margin
+
     // want pdf tile height and width to remain proportional to original input imagetile height and width
     if image_aspect < pdf_doc_aspect {
-        pdftile_wid_mm = (doc_width_mm - page_margin_left_mm - page_margin_right_mm) / pane_tile_col_count as f64;
+        pdftile_wid_mm = (doc_width_mm - page_margin_left_mm - page_margin_right_mm) / p_cfg.pane_tile_col_count as f64;
         pdftile_hgt_mm = &pdftile_wid_mm * imgtile_hgt_px/imgtile_wid_px;
         println!();
         println!("image_aspect {:.4} < pdf_doc_aspect {:.4} -> use pdf width to limit output", image_aspect, pdf_doc_aspect);
         println!("pdftile_wid_mm: {:.4}, pdftile_hgt_mm: {:.4}",pdftile_wid_mm, pdftile_hgt_mm);
     } else {
-        pdftile_hgt_mm = (doc_height_mm - (2.0 * page_margin_ver_mm)) / pane_tile_row_count as f64;
+        // TODO need to somehow account for right margin not being accounted for here.
+        pdftile_hgt_mm = (doc_height_mm - (2.0 * page_margin_ver_mm)) / p_cfg.pane_tile_row_count as f64;
         pdftile_wid_mm = &pdftile_hgt_mm * imgtile_wid_px/imgtile_hgt_px;
         println!();
         println!("image_aspect {:.4} => pdf_doc_aspect {:.4} -> use pdf height to limit output", image_aspect, pdf_doc_aspect);
@@ -493,7 +494,7 @@ fn construct_pane_detail_page(pane_no: usize,
     let scale_factor_hgt :f64 = pdftile_hgt_pt.0 / imgtile_hgt_px ;
 
     println!();
-    println!("**--->   img_max_x_px: {:.3},   img_max_y_px: {:.3}", img_max_x_px, img_max_y_px );
+    println!("**---> p_cfg.max_pane_x_px: {:.3},   p_cfg.max_pane_y_px: {:.3}", p_cfg.max_pane_x_px, p_cfg.max_pane_y_px );
     println!("**---> imgtile_wid_px: {:.3}, imgtile_hgt_px: {:.3}", imgtile_wid_px, imgtile_hgt_px );
     println!("**---> pdftile_wid_mm: {:.3}, pdftile_hgt_mm: {:.3}", pdftile_wid_mm, pdftile_hgt_mm );
     println!("**---> scale_factor_wid: {:.3}, scale_factor_hgt: {:.3}", scale_factor_wid, scale_factor_hgt );
@@ -507,82 +508,112 @@ fn construct_pane_detail_page(pane_no: usize,
 
     draw_pane_circles(&pane,
                         &&current_layer,
+                        pane_font,
                         grid_origin_x_mm,
                         grid_origin_y_mm,
                         scale_factor_wid,
                         scale_factor_hgt,
-                        pane_tile_row_count,
-                        pane_tile_col_count,
+                        p_cfg.pane_tile_row_count,
+                        p_cfg.pane_tile_col_count,
                         pdftile_wid_mm,
-                        pdftile_hgt_mm);
+                        pdftile_hgt_mm,
+                        all_colors,
+                        tile_color_count_vec);
 
-    // let outline_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
-    // current_layer.set_outline_color(outline_color);
-    // current_layer.set_outline_thickness(2.0);
-    //
-    // // for each window pane column draw a vertical line
-    // for column in 0..=win_pane_col_count // 0,1,2,3 , zero based
-    // {
-    //     // Convert Mm into Pt function.
-    //     let start_x : Pt = Mm(grid_origin_x_mm + column as f64 * pane_tile_col_count as f64 * pdftile_wid_mm as f64).into();
-    //     let start_y : Pt = Mm(grid_origin_y_mm).into();
-    //     let end_x : Pt = start_x.clone();  // drawing a vertical line so x remains the same
-    //     let end_y : Pt = Mm(grid_origin_y_mm + win_pane_row_count as f64 * pane_tile_row_count as f64 * pdftile_hgt_mm as f64).into();
-    //
-    //     let line = Line {
-    //         points: get_points_for_line(start_x, start_y, end_x, end_y),
-    //         is_closed: false,
-    //         has_fill: false,
-    //         has_stroke: true,
-    //         is_clipping_path: false,
-    //     };
-    //     current_layer.add_shape(line);
-    // }
-    //
-    // // for each window pane row draw a horizontal line
-    // for row in 0..=win_pane_row_count // 0,1,2,3 , zero based
-    // {
-    //     // println!("---->start_y_pt = ({:.2})+({:.2}) * ({:.2}) * ({:.2}) \ngrid_origin_y_mm + row * pane_tile_row_count * pdftile_hgt_mm", grid_origin_y_mm, row , pane_tile_row_count , pdftile_hgt_mm) ;  //  <--- something wrong here)
-    //     // Convert Mm into Pt function.
-    //     let start_x_pt : Pt = Mm(grid_origin_x_mm).into();
-    //     let start_y_pt : Pt = Mm(grid_origin_y_mm + row as f64 * pane_tile_row_count as f64 * pdftile_hgt_mm as f64).into();  //  <--- something wrong here
-    //       let end_x_pt : Pt = Mm(grid_origin_x_mm + win_pane_col_count as f64 * pane_tile_col_count as f64 * pdftile_wid_mm as f64).into();
-    //       let end_y_pt : Pt = start_y_pt.clone();  // drawing a horizontal line so y remains the same
-    //
-    //     let line = Line {
-    //         points: get_points_for_line(start_x_pt, start_y_pt, end_x_pt, end_y_pt),
-    //         is_closed: false,
-    //         has_fill: false,
-    //         has_stroke: true,
-    //         is_clipping_path: false,
-    //     };
-    //     current_layer.add_shape(line);
-    // }
-    //
-    // let outline_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
-    // let fill_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)); // black
-    // current_layer.set_outline_color(outline_color);
-    // current_layer.set_outline_thickness(2.0);
-    // current_layer.set_fill_color(fill_color);
-    //
-    // // Write out the pane number to center of pane
-    // let pane_no_loc: Vec<(f64,f64,String)> = get_pane_text_loc_px(&window_panes_coords_px );  // returns center point of input image and pane no as a string
-    // for number in pane_no_loc {
-    //     // Compute new pdf Pane No x,y location. Input px values are translated to pdf origin and scaled to output pdf units.
-    //     let grid_origin_x_pt: Pt = Mm(grid_origin_x_mm).into();
-    //     let grid_origin_y_pt: Pt = Mm(grid_origin_y_mm).into();
-    //     let x_pt: Pt = Pt(number.0 *  scale_factor_wid + grid_origin_x_pt.0);
-    //     let y_pt: Pt = Pt(number.1 * scale_factor_hgt + grid_origin_y_pt.0);
-    //     let x_mm: Mm = x_pt.into();
-    //     let y_mm: Mm = y_pt.into();
-    //
-    //     // println!("text location {:?}", number);
-    //     // TODO Scale font to pane size and number of panes
-    //     // TODO adjust Location of center where number displays
-    //     current_layer.use_text(number.2, 48.0, x_mm, y_mm, &grid_font);
-    // }
+    draw_pane_legend(pane,
+                     pane_no,
+                     &current_layer,
+                     pane_font,
+                     doc_width_mm,
+                     doc_height_mm,
+                     page_margin_ver_mm,
+                     page_margin_left_mm,
+                     page_margin_right_mm,
+                     all_colors,
+                     tile_color_count_vec
+                    );
 
 } // construct_pane_detail_page
+
+// Create legend of each color used in pane on RHS of pane detail page
+fn draw_pane_legend(pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>,
+                    pane_no : usize,
+                    current_layer: &PdfLayerReference,
+                    pane_font: &&IndirectFontRef,
+                    _doc_width_mm: f64,
+                    doc_height_mm: f64,
+                    page_margin_ver_mm: f64,
+                    _page_margin_left_mm: f64,
+                    _page_margin_right_mm: f64,
+                    all_colors: &modtile::AllColors,
+                    tile_color_count_vec: &Vec<(Vec<u8>, i32)>,) -> () {
+
+    // create list of unique colors ordered by number of times used in the pane
+    let mut pane_tile_colours: HashMap<modtile::RGB, i32> = HashMap::new();
+    for (_i, tile) in pane.iter().enumerate() {
+        let tile_rgb = tile.1;
+        *pane_tile_colours.entry(tile_rgb).or_insert(0) += 1;
+    }
+
+    println!("draw_pane_legend for page {} " , pane_no);
+    println!("There are {} different colors " , &pane_tile_colours.len());
+
+    // Sort the pane colours by the number of times used in pane
+    let mut pane_colour_vec: Vec<(&modtile::RGB, &i32)> = pane_tile_colours.iter().collect();
+    pane_colour_vec.sort_by(|a, b| b.1.cmp(a.1));
+
+    // set a black "Pane #" footer
+    let fill_color = Color::Rgb(Rgb::new(0.0, 0.0,0.0, None));
+    current_layer.set_fill_color(fill_color);
+    let pn: String = format!("Pane {}", pane_no) ;
+    current_layer.use_text(pn, 24.0, Mm(100.0), Mm(6.0), pane_font);
+
+    let pn: String = format!("There are {} different coloured tiles", &pane_tile_colours.len() ) ;
+    current_layer.use_text(pn, 24.0, Mm(60.0), Mm(205.0), pane_font);
+
+    // split tile_color_count_vec into two separate vecs
+    let (tile_colors, _count) : (Vec<&Vec<u8>>,Vec<&i32>) = tile_color_count_vec.iter().map(|&(ref a, ref b)| (a, b)).unzip();
+
+    // loop through all the colors and print to legend
+    for (i,tile_rgb) in pane_colour_vec.iter().enumerate() {
+
+        let red = tile_rgb.0.0 as f64;
+        let green = tile_rgb.0.1 as f64;
+        let blue = tile_rgb.0.2 as f64;
+
+        let fill_color = Color::Rgb(Rgb::new(red/255.0, green/255.0,blue/255.0, None));
+        current_layer.set_fill_color(fill_color);
+
+        // grab the Color Name from all_colors
+        for tc in &all_colors.colors {
+            if *tile_rgb.0 == tc.rgb {
+
+                // draw a circle with tile color beside Name String
+                let radius_pt: Pt = Mm(6.0).into();
+
+                let center_x_pt: Pt = Mm(205.0).into();
+                let center_y_pt: Pt = Mm((doc_height_mm as f64 - page_margin_ver_mm as f64) - 15.0 * i as f64).into();
+                draw_circle_with_pts(&current_layer, center_x_pt, center_y_pt, radius_pt) ;
+
+                let tc_name :String = tc.name.to_owned();
+                // println!("---> Count: {}, \t {:?}, ", *tile_rgb.1,  tc_name );
+
+                let t : Vec<u8> =  vec![tile_rgb.0.0, tile_rgb.0.1 , tile_rgb.0.2 ];
+                let pos = &tile_colors.iter().position(|rgb| **rgb == t );
+
+                let pos_str: String = format!("{}", pos.unwrap().to_string()) ;
+                let fill_color = Color::Rgb(Rgb::new(255.0, 255.0,255.0, None));
+                current_layer.set_fill_color(fill_color);
+                current_layer.use_text(pos_str, 20.0, Mm(203.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 2.0) - 15.0 * i as f64), pane_font);
+
+                let name_str: String = format!("{} - {}", tc_name, *tile_rgb.1) ;
+                let fill_color = Color::Rgb(Rgb::new(0.0, 0.0,0.0, None));
+                current_layer.set_fill_color(fill_color);
+                current_layer.use_text(name_str, 20.0, Mm(212.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 1.0) - 15.0 * i as f64), pane_font);
+            }
+        };
+    }
+} // draw_pane_legend
 
 fn draw_page_marks(current_layer: &&PdfLayerReference, doc_width_as_mm: f64, doc_height_as_mm: f64) -> () {
 
@@ -707,6 +738,7 @@ fn draw_tiles(pdf_output_window: &Vec<Vec<(Box2D<i32, i32>,
 // Copy of draw_summary_circles using scale scale_factor_wid
 fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
                         current_layer: &&PdfLayerReference,
+                        pane_font: &&IndirectFontRef,
                         grid_origin_x_mm: f64,
                         grid_origin_y_mm: f64,
                         scale_factor_wid: f64,
@@ -714,7 +746,9 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
                         pane_tile_row_count: i32,
                         pane_tile_col_count: i32,
                         pdftile_wid_mm: f64,
-                        pdftile_hgt_mm: f64) -> () {
+                        pdftile_hgt_mm: f64,
+                        all_colors: &modtile::AllColors,
+                        tile_color_count_vec: &Vec<(Vec<u8>,i32)>,) -> () {
 
     // convert to Pt for strong typing
     let grid_origin_x_pt: Pt = Mm(grid_origin_x_mm).into();
@@ -731,6 +765,11 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
     //  simply subtracting the min x,y value of the "Origin Pane" from all the tile x,y values
     let x_transpose: i32 = origin_tile.min.x;
     let y_transpose: i32 = origin_tile.min.y;
+
+    // split vec into two separate vecs
+    let (tile_colors, _count) : (Vec<&Vec<u8>>,Vec<&i32>) = tile_color_count_vec.iter().map(|&(ref a, ref b)| (a, b)).unzip();
+    // println!("---> tile_colors {:?}", &tile_colors);
+    // println!("---> count {:?}", count);
 
     for (_i, tile) in pdf_output_pane.iter().enumerate() {
 
@@ -753,7 +792,31 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
 
             let center_x_pt: Pt = Pt((tile_box.center().x - x_transpose) as f64 * scale_factor_wid + grid_origin_x_pt.0);
             let center_y_pt: Pt = Pt((tile_box.center().y - y_transpose) as f64 * scale_factor_hgt + grid_origin_y_pt.0);
-            draw_circle_with_pts(&current_layer, center_x_pt, center_y_pt, radius_pt) ;
+            draw_circle_with_pts(&current_layer, center_x_pt, center_y_pt, radius_pt) ;             // pane detail with color fill circles
+            // draw_circle_with_pts_no_fill(&current_layer, center_x_pt, center_y_pt, radius_pt) ;  // pane detail without color fill circles
+
+            // Draw text with number inside circle
+            // grab the Color Number vector of tile colors used to create mosaic
+            let t : Vec<u8> =  vec![tile_rgb.0, tile_rgb.1 , tile_rgb.2 ];
+            let pos = &tile_colors.iter().position(|rgb| **rgb == t );
+
+            for tc in &all_colors.colors {
+                if tile_rgb == tc.rgb {
+                    // println!("--->pos {:?} Name {}", pos, tc.name.to_owned());
+                    let tile_no: String = format!("{}", pos.unwrap().to_string()) ;
+                    let fill_color = Color::Rgb(Rgb::new(255.0, 255.0,255.0, None));   // pane detail with color fill circles
+                    // let fill_color = Color::Rgb(Rgb::new(0.0, 0.0,0.0, None));      // pane detail without color fill circles
+
+                    current_layer.set_fill_color(fill_color);
+                    let mut offset_center_x_mm : Mm = center_x_pt.into();
+                    offset_center_x_mm = offset_center_x_mm - Mm(2.0);
+                    let mut offset_center_y_mm : Mm = center_y_pt.into();
+                    offset_center_y_mm = offset_center_y_mm - Mm(2.0);
+
+                    // current_layer.use_text(tile_no, 20.0, center_x_pt.into() , center_y_pt.into(), pane_font);
+                    current_layer.use_text(tile_no, 20.0, offset_center_x_mm , offset_center_y_mm, pane_font);
+                }
+            };
 
             // // Debug stuff
             // if i < 10
@@ -871,6 +934,8 @@ fn draw_diag(current_layer: &&PdfLayerReference) {
     draw_circle_with_pts(&current_layer, x3, y2, radi) ;
 } // draw_diag
 
+
+
 // Convert all the Box2D coords from image coord space into PDF coord space.
 // see get_pane_pdf_coords() below for explanation of how this code works
 fn get_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>, max_y: i32) -> Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> {
@@ -912,7 +977,7 @@ fn get_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>, max
 // adust the Box2D min max values accordingly
 // Get the PX cooridinates of each window pane.
 // esentially constructing a Box2D using first tile min loc and last tile max location.
-fn get_pane_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> ) -> (i32,i32, i32,i32, i32,i32, Vec<Box2D<i32,i32>>) {
+fn get_pane_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>) -> PanePdfConfig {
 
     // grab the max x y dimensions
     let mut win_max_x : i32 = 0;
@@ -1005,13 +1070,9 @@ fn get_pane_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>
         // println!("Window max_x {:?}", &win_max_x);
 
         *pane_x_coords.entry(pdf_min_x).or_insert(0) += 1;
-        *pane_x_coords.entry(pdf_min_x).or_insert(0) += 1;
-        *pane_x_coords.entry(pdf_max_x).or_insert(0) += 1;
-        *pane_x_coords.entry(pdf_max_x).or_insert(0) += 1;
+        *pane_y_coords.entry(pdf_min_y).or_insert(0) += 1;
 
-        *pane_y_coords.entry(pdf_min_y).or_insert(0) += 1;
-        *pane_y_coords.entry(pdf_min_y).or_insert(0) += 1;
-        *pane_y_coords.entry(pdf_max_y).or_insert(0) += 1;
+        *pane_x_coords.entry(pdf_max_x).or_insert(0) += 1;
         *pane_y_coords.entry(pdf_max_y).or_insert(0) += 1;
 
         let pdf_min_pt: Point2D<i32,i32> = Point2D::new(pdf_min_x,pdf_min_y);
@@ -1033,7 +1094,15 @@ fn get_pane_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>
     println!("window pane row count: {:?}", &win_pane_row_count);  // pane row count is 1 correct
     println!("window pane col count: {:?}", &win_pane_col_count);  // pane col count is 3 incorrect... should be something is wrong here
 
-    (win_max_x,win_max_y,win_pane_row_count, win_pane_col_count, tile_row_count, tile_col_count, ret)
+    let res : PanePdfConfig = PanePdfConfig { max_pane_x_px: win_max_x,
+                                              max_pane_y_px: win_max_y,
+                                              pane_row_count: win_pane_row_count,
+                                              pane_col_count: win_pane_col_count,
+                                              pane_tile_row_count: tile_row_count,
+                                              pane_tile_col_count: tile_col_count,
+                                              window_panes_coords_px: ret };
+
+    res
 
 } // get_pane_pdf_coords
 
@@ -1094,6 +1163,25 @@ fn draw_circle_with_pts(current_layer: &&PdfLayerReference, offsetx_pt: Pt, offs
     // Draw the circle
     current_layer.add_shape(circle1);
 } // draw_circle_with_pts
+
+
+fn draw_circle_with_pts_no_fill(current_layer: &&PdfLayerReference, offsetx_pt: Pt, offsety_pt: Pt, radius_pt: Pt) -> () {
+
+    let circle_points = calculate_points_for_circle(radius_pt, offsetx_pt, offsety_pt);
+
+    let circle1 = Line {
+       points: circle_points,
+       is_closed: true,
+       has_fill: false,
+       has_stroke: true,
+       is_clipping_path: false,
+    };
+
+    // Draw the circle
+    current_layer.add_shape(circle1);
+} // draw_circle_with_pts_no_fill
+
+
 
 // formula for creating a bezier arc
 // via https://spencermortensen.com/articles/bezier-circle/
