@@ -1,0 +1,13 @@
+{
+  "tile_colors":"./tile_json/mb_miteinte_colors.json",
+  "input":"./images/mary_blaze_colour.png",
+  "output":"./images/output/mb_miteinte_60x60_op_1.jpg",
+  "output_width":600.0,
+  "output_height":600.0,
+  "tile_size_x":10,
+  "tile_size_y":10,
+  "tile_space_x":0.0,
+  "tile_space_y":0.0,
+  "tiles_per_pane_width":10,
+  "tiles_per_pane_height":10
+}
