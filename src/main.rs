@@ -250,7 +250,6 @@ fn main() {
     out_img.save(save_path).unwrap();
 
     // create a vector of output colors and sort it by usage count
-    // let mut tile_color_count_vec: Vec<(&&Vec<u8>, &i32)> = tile_color_count.iter().collect();
     let mut tile_color_count_vec: Vec<(Vec<u8>, i32)> = tile_color_count.into_iter().collect();
     tile_color_count_vec.sort_by(|a, b| b.1.cmp(&a.1));
 
