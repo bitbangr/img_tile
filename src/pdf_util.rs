@@ -977,7 +977,6 @@ fn get_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>, max
 // adust the Box2D min max values accordingly
 // Get the PX cooridinates of each window pane.
 // esentially constructing a Box2D using first tile min loc and last tile max location.
-// fn get_pane_pdf_coords_orig(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>> ) -> (i32,i32, i32,i32, i32,i32, Vec<Box2D<i32,i32>>) {
 fn get_pane_pdf_coords(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>) -> PanePdfConfig {
 
     // grab the max x y dimensions
