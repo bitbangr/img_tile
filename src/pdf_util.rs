@@ -604,7 +604,7 @@ fn draw_pane_legend(pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>,
                 let pos_str: String = format!("{}", pos.unwrap().to_string()) ;
                 let fill_color = Color::Rgb(Rgb::new(255.0, 255.0,255.0, None));
                 current_layer.set_fill_color(fill_color);
-                current_layer.use_text(pos_str, 20.0, Mm(203.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 1.0) - 15.0 * i as f64), pane_font);
+                current_layer.use_text(pos_str, 20.0, Mm(203.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 2.0) - 15.0 * i as f64), pane_font);
 
                 let name_str: String = format!("{} - {}", tc_name, *tile_rgb.1) ;
                 let fill_color = Color::Rgb(Rgb::new(0.0, 0.0,0.0, None));
