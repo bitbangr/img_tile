@@ -276,6 +276,8 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
     println!("construct_window_panes number of panes: {}", output_window.len());
     println!("construct_window_panes number of tiles per pane: {}", output_window[0].len());
 
+    //  git test to check Github branch. 
+
     // draw a simple quarter arc at (0,0). Leave as a "makers mark"
     draw_quarter_arc(&current_layer);
 
