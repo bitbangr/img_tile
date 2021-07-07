@@ -449,8 +449,8 @@ fn construct_pane_detail_page(pane_no: usize,
     // draw a simple quarter arc at (0,0). Leave as a "makers mark"
     draw_quarter_arc(&&current_layer);
 
-    // draw some cross marks to aid in element placement
-    draw_page_marks(&&current_layer,doc_width_mm,doc_height_mm);
+    // draw some cross marks to aid in element placement  comment out following line if pane detail without color fill circles
+    draw_page_marks(&&current_layer,doc_width_mm,doc_height_mm);  // pane detail with color fill circles
 
     let page_margin_ver_mm = 20.0; // size of top bottom margin
     let page_margin_left_mm = 20.0; // size of left margin
@@ -601,12 +601,15 @@ fn draw_pane_legend(pane: &&Vec<(Box2D<i32, i32>, modtile::RGB)>,
                 let t : Vec<u8> =  vec![tile_rgb.0.0, tile_rgb.0.1 , tile_rgb.0.2 ];
                 let pos = &tile_colors.iter().position(|rgb| **rgb == t );
 
-                // let ts: String = format!("{}.   {} - {}", i + 1, tc_name, *tile_rgb.1) ;
-                let ts: String = format!("{}   {} - {}", pos.unwrap().to_string(), tc_name, *tile_rgb.1) ;
+                let pos_str: String = format!("{}", pos.unwrap().to_string()) ;
+                let fill_color = Color::Rgb(Rgb::new(255.0, 255.0,255.0, None));
+                current_layer.set_fill_color(fill_color);
+                current_layer.use_text(pos_str, 20.0, Mm(203.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 1.0) - 15.0 * i as f64), pane_font);
+
+                let name_str: String = format!("{} - {}", tc_name, *tile_rgb.1) ;
                 let fill_color = Color::Rgb(Rgb::new(0.0, 0.0,0.0, None));
                 current_layer.set_fill_color(fill_color);
-                current_layer.use_text(ts, 20.0, Mm(203.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 1.0) - 15.0 * i as f64), pane_font);
-
+                current_layer.use_text(name_str, 20.0, Mm(212.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 1.0) - 15.0 * i as f64), pane_font);
             }
         };
     }
@@ -789,7 +792,8 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
 
             let center_x_pt: Pt = Pt((tile_box.center().x - x_transpose) as f64 * scale_factor_wid + grid_origin_x_pt.0);
             let center_y_pt: Pt = Pt((tile_box.center().y - y_transpose) as f64 * scale_factor_hgt + grid_origin_y_pt.0);
-            draw_circle_with_pts(&current_layer, center_x_pt, center_y_pt, radius_pt) ;
+            draw_circle_with_pts(&current_layer, center_x_pt, center_y_pt, radius_pt) ;             // pane detail with color fill circles
+            // draw_circle_with_pts_no_fill(&current_layer, center_x_pt, center_y_pt, radius_pt) ;  // pane detail without color fill circles
 
             // Draw text with number inside circle
             // grab the Color Number vector of tile colors used to create mosaic
@@ -800,9 +804,17 @@ fn draw_pane_circles(pdf_output_pane: &Vec<(Box2D<i32, i32>, modtile::RGB)>,
                 if tile_rgb == tc.rgb {
                     // println!("--->pos {:?} Name {}", pos, tc.name.to_owned());
                     let tile_no: String = format!("{}", pos.unwrap().to_string()) ;
-                    let fill_color = Color::Rgb(Rgb::new(255.0, 255.0,255.0, None));
+                    let fill_color = Color::Rgb(Rgb::new(255.0, 255.0,255.0, None));   // pane detail with color fill circles
+                    // let fill_color = Color::Rgb(Rgb::new(0.0, 0.0,0.0, None));      // pane detail without color fill circles
+
                     current_layer.set_fill_color(fill_color);
-                    current_layer.use_text(tile_no, 20.0, center_x_pt.into() , center_y_pt.into() , pane_font);
+                    let mut offset_center_x_mm : Mm = center_x_pt.into();
+                    offset_center_x_mm = offset_center_x_mm - Mm(2.0);
+                    let mut offset_center_y_mm : Mm = center_y_pt.into();
+                    offset_center_y_mm = offset_center_y_mm - Mm(2.0);
+
+                    // current_layer.use_text(tile_no, 20.0, center_x_pt.into() , center_y_pt.into(), pane_font);
+                    current_layer.use_text(tile_no, 20.0, offset_center_x_mm , offset_center_y_mm, pane_font);
                 }
             };
 
@@ -1152,6 +1164,25 @@ fn draw_circle_with_pts(current_layer: &&PdfLayerReference, offsetx_pt: Pt, offs
     // Draw the circle
     current_layer.add_shape(circle1);
 } // draw_circle_with_pts
+
+
+fn draw_circle_with_pts_no_fill(current_layer: &&PdfLayerReference, offsetx_pt: Pt, offsety_pt: Pt, radius_pt: Pt) -> () {
+
+    let circle_points = calculate_points_for_circle(radius_pt, offsetx_pt, offsety_pt);
+
+    let circle1 = Line {
+       points: circle_points,
+       is_closed: true,
+       has_fill: false,
+       has_stroke: true,
+       is_clipping_path: false,
+    };
+
+    // Draw the circle
+    current_layer.add_shape(circle1);
+} // draw_circle_with_pts_no_fill
+
+
 
 // formula for creating a bezier arc
 // via https://spencermortensen.com/articles/bezier-circle/
