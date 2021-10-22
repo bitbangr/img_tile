@@ -1164,7 +1164,6 @@ fn draw_circle_with_pts(current_layer: &&PdfLayerReference, offsetx_pt: Pt, offs
     current_layer.add_shape(circle1);
 } // draw_circle_with_pts
 
-
 fn draw_circle_with_pts_no_fill(current_layer: &&PdfLayerReference, offsetx_pt: Pt, offsety_pt: Pt, radius_pt: Pt) -> () {
 
     let circle_points = calculate_points_for_circle(radius_pt, offsetx_pt, offsety_pt);
@@ -1180,8 +1179,6 @@ fn draw_circle_with_pts_no_fill(current_layer: &&PdfLayerReference, offsetx_pt: 
     // Draw the circle
     current_layer.add_shape(circle1);
 } // draw_circle_with_pts_no_fill
-
-
 
 // formula for creating a bezier arc
 // via https://spencermortensen.com/articles/bezier-circle/
@@ -1213,7 +1210,6 @@ fn draw_quarter_arc(current_layer: &&PdfLayerReference) -> () {
        has_stroke: true,
        is_clipping_path: false,
     };
-
     // Draw first arc
     current_layer.add_shape(line1);
 } // draw_quarter_arc
