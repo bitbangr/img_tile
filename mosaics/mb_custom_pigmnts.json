@@ -1,0 +1,16 @@
+{ "name":"Custom Pigments",
+  "url":"_",
+  "description":"Creating a palette of 5 Colours from mary_blaze_colour.png using rust -> pigmnts mary_blaze_colour.png -xrd",
+  "colors":[
+    { "rgb":[27, 27, 31],"name":"Colour 1","number":"1"},
+    { "rgb":[52, 49, 51],"name":"Colour 2","number":"2"},
+    { "rgb":[105, 98, 95],"name":"Colour 3 ","number":"3"},
+    { "rgb":[163, 154, 148],"name":"Colour 4 ","number":"4"},
+    { "rgb":[222, 187, 165],"name":"Colour 5","number":"5"},
+    { "rgb":[160, 112, 89],"name":"Colour 6","number":"6"},
+    { "rgb":[197, 149, 124],"name":"Colour 7","number":"7"},
+    { "rgb":[81, 46, 34],"name":"Colour 8","number":"8"},
+    { "rgb":[123, 76, 58],"name":"Colour 9","number":"9"},
+    { "rgb":[185, 71, 86],"name":"Colour 10","number":"10"}
+    ]
+}
