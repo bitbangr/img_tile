@@ -1,14 +1,15 @@
 # img_tile
   
-img_tile converts an input image into a tiled image.  
+img_tile converts an input image into a tiled image and produces an output "map" pdf file that can be used to construct a mosaic with actual ceramic tiles.
   Tile colours are specified in json format in a color file.
     
-  Program are parameters specified in a json config file passed as a command line arg. 
+  Program parameters are specified in a json config file passed as a command line arg. 
     
-This rrogram is run via command line.  
-workingdir % target/debug/img_tile --config ./config/config_200px_kroma_2x2.json. 
+This program is run via command line. For example
+
+  workingdir%target/debug/img_tile --config ./config/config_200px_kroma_2x2.json 
   
-Config file is Json format. 
+The input config file is in json format. 
   
 { "tile_colors":"./tile_json/kroma_colors.json",  
   "input":"./images/4x4_Kroma_16.png",  
