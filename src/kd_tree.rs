@@ -1,3 +1,5 @@
+// THe KDTree implimentation CODE below is from forked github project
+// https://github.com/z2oh/chromatic_confinement
 use ego_tree::{NodeMut, NodeRef, Tree};
 
 static mut DIST_CALLS: u64 = 0;
