@@ -425,9 +425,128 @@ fn construct_window_panes(current_layer: &PdfLayerReference,
                                           doc_width_mm,
                                           doc_height_mm,
                                           &p_cfg);
-    }
+                                      }
 
-}  // construct_window_panes
+    // // construct a final summary page listing total number of each tile color used
+    // // sorted from most used to least used
+    construct_tile_color_summary_page(&doc,
+                                  &pane_font,
+                                  all_colors,
+                                  &tile_color_count_vec,
+                                  doc_width_mm,
+                                  doc_height_mm);
+} // construct_window_panes
+
+fn construct_tile_color_summary_page(doc: &&PdfDocumentReference,
+                                pane_font: &&IndirectFontRef,
+                                all_colors: &modtile::AllColors,
+                                tile_color_count_vec: &[(Vec<u8>, i32)],
+                                doc_width_mm: f64,
+                                doc_height_mm: f64) -> () {
+
+     println!("Construct tile color summary page");
+
+     let (page1, layer1) = doc.add_page(Mm(doc_width_mm), Mm(doc_height_mm),format!("Page {}, Layer 1", "37".to_owned()));
+     let current_layer = doc.get_page(page1).get_layer(layer1);
+
+     // draw a simple quarter arc at (0,0). Leave as a "makers mark"
+     draw_quarter_arc(&&current_layer);
+
+     // draw some cross marks to aid in element placement  comment out following line if pane detail without color fill circles
+     // draw_page_marks(&&current_layer,doc_width_mm,doc_height_mm);  // pane detail with color fill circles
+
+     let page_margin_ver_mm = 20.0; // size of top bottom margin
+     let page_margin_left_mm: f64 = 20.0; // size of left margin
+     let page_margin_right_mm: f64 = 50.0; // size of right margin
+
+     // set a black "Pane #" footer
+     let fill_color = Color::Rgb(Rgb::new(0.0, 0.0,0.0, None));
+     current_layer.set_fill_color(fill_color);
+     let pn: String = format!("Tile Colors ") ;
+     current_layer.use_text(pn, 24.0, Mm(100.0), Mm(6.0), pane_font);
+
+     let pn: String = format!("There are {} different coloured tiles", &tile_color_count_vec.len() ) ;
+     current_layer.use_text(pn, 24.0, Mm(60.0), Mm(205.0), pane_font);
+
+     // we want to print out detailed TileColor info (not just rgb value and count)
+     println!();
+     println!("Number of colors used: {}" , tile_color_count_vec.len());
+     println!("Colors ordered by tile count") ;
+
+     for (i,bc) in tile_color_count_vec.iter().enumerate() {
+         let var_rgb : modtile::RGB = modtile::RGB(bc.0[0],bc.0[1],bc.0[2]);
+
+         let red = var_rgb.0 as f64;
+         let green = var_rgb.1 as f64;
+         let blue = var_rgb.2 as f64;
+
+         let fill_color = Color::Rgb(Rgb::new(red/255.0, green/255.0,blue/255.0, None));
+         current_layer.set_fill_color(fill_color);
+
+         let col_0_x :f64 = 20.0;
+         let col_1_x :f64 = 110.0;
+         let col_2_x :f64 = 195.0;
+
+         let mut cur_col : f64 = 0.0;
+         if i <= 10
+            { cur_col = col_0_x }
+         else if i > 10 && i <= 20
+            { cur_col = col_1_x }
+         else if i > 20 && i <= 30
+            { cur_col = col_2_x };
+
+         let col_0_x :f64 = 20.0;
+         let col_1_x :f64 = 110.0;
+         let col_2_x :f64 = 195.0;
+
+         for tc in &all_colors.colors {
+             if var_rgb == tc.rgb {
+                 println!("Count: {}, \t {:?}, ", bc.1,  tc );
+
+                      // draw a circle with tile color beside Name String
+                      let radius_pt: Pt = Mm(6.0).into();
+
+                      // let center_x_pt: Pt = Mm(25.0).into();
+                      let center_x_pt: Pt = Mm(col_0_x).into();
+                      let center_y_pt: Pt = Mm((doc_height_mm as f64 - page_margin_ver_mm as f64) - 15.0 * i as f64).into();
+                      draw_circle_with_pts(&&current_layer, center_x_pt, center_y_pt, radius_pt) ;
+
+                      let center_x_pt: Pt = Mm(col_1_x).into();
+                      let center_y_pt: Pt = Mm((doc_height_mm as f64 - page_margin_ver_mm as f64) - 15.0 * i as f64).into();
+                      draw_circle_with_pts(&&current_layer, center_x_pt, center_y_pt, radius_pt) ;
+
+                      let center_x_pt: Pt = Mm(col_2_x).into();
+                      let center_y_pt: Pt = Mm((doc_height_mm as f64 - page_margin_ver_mm as f64) - 15.0 * i as f64).into();
+                      draw_circle_with_pts(&&current_layer, center_x_pt, center_y_pt, radius_pt) ;
+
+                      let tc_name :String = tc.name.to_owned();
+                      let pos = i;
+                      let pos_str = pos.to_string().to_owned();
+
+                      let fill_color = Color::Rgb(Rgb::new(255.0, 255.0,255.0, None));
+                      current_layer.set_fill_color(fill_color);
+
+                      // current_layer.use_text(pos_str, 20.0, Mm(23.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 2.0) - 15.0 * i as f64), pane_font);
+                      current_layer.use_text(&pos_str, 20.0, Mm(col_0_x - 2.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 2.0) - 15.0 * i as f64), pane_font);
+                      current_layer.use_text(&pos_str, 20.0, Mm(col_1_x - 2.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 2.0) - 15.0 * i as f64), pane_font);
+                      current_layer.use_text(&pos_str, 20.0, Mm(col_2_x - 2.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 2.0) - 15.0 * i as f64), pane_font);
+
+                      let name_str: String = format!("{} - {} ", tc_name, bc.1) ;
+                      let fill_color = Color::Rgb(Rgb::new(0.0, 0.0,0.0, None));
+                      current_layer.set_fill_color(fill_color);
+
+                      // current_layer.use_text(name_str, 20.0, Mm(32.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 1.0) - 15.0 * i as f64), pane_font);
+                      current_layer.use_text(&name_str, 20.0, Mm(col_0_x + 7.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 1.0) - 15.0 * i as f64), pane_font);
+                      current_layer.use_text(&name_str, 20.0, Mm(col_1_x + 7.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 1.0) - 15.0 * i as f64), pane_font);
+                      current_layer.use_text(&name_str, 20.0, Mm(col_2_x + 7.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 1.0) - 15.0 * i as f64), pane_font);
+
+                      // once we have the colour we can break out of loop
+                      break;
+             }
+         };
+      }
+
+}  // construct_tile_color_summary_page
 
 // Construct the detail page for each pane
 fn construct_pane_detail_page(pane_no: usize,
