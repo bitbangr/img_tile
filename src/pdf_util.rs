@@ -483,21 +483,26 @@ fn construct_tile_color_summary_page(doc: &&PdfDocumentReference,
          let fill_color = Color::Rgb(Rgb::new(red/255.0, green/255.0,blue/255.0, None));
          current_layer.set_fill_color(fill_color);
 
-         let col_0_x :f64 = 20.0;
-         let col_1_x :f64 = 110.0;
-         let col_2_x :f64 = 195.0;
+         let col_0_x :i32 = 20;
+         let col_1_x :i32 = 110;
+         let col_2_x :i32 = 195;
 
-         let mut cur_col : f64 = 0.0;
-         if i <= 10
-            { cur_col = col_0_x }
-         else if i > 10 && i <= 20
-            { cur_col = col_1_x }
-         else if i > 20 && i <= 30
-            { cur_col = col_2_x };
+         let mut cur_col : usize = 0;
+         if i <= 9
+            { cur_col = 0 }
+         else if i > 9 && i <= 19
+            { cur_col = 1 }
+         else if i > 19 && i <= 29
+            { cur_col = 2 };
 
-         let col_0_x :f64 = 20.0;
-         let col_1_x :f64 = 110.0;
-         let col_2_x :f64 = 195.0;
+        let col_pos_x: [i32; 3]= [20,110,195];
+
+         // let col_0_x :f64 = 20.0;
+         // let col_1_x :f64 = 110.0;
+         // let col_2_x :f64 = 195.0;
+
+         // MOD magic number here
+         let display_entries_per_col = 10;
 
          for tc in &all_colors.colors {
              if var_rgb == tc.rgb {
@@ -507,16 +512,9 @@ fn construct_tile_color_summary_page(doc: &&PdfDocumentReference,
                       let radius_pt: Pt = Mm(6.0).into();
 
                       // let center_x_pt: Pt = Mm(25.0).into();
-                      let center_x_pt: Pt = Mm(col_0_x).into();
-                      let center_y_pt: Pt = Mm((doc_height_mm as f64 - page_margin_ver_mm as f64) - 15.0 * i as f64).into();
-                      draw_circle_with_pts(&&current_layer, center_x_pt, center_y_pt, radius_pt) ;
+                      let center_x_pt: Pt = Mm(col_pos_x[cur_col] as f64).into();
 
-                      let center_x_pt: Pt = Mm(col_1_x).into();
-                      let center_y_pt: Pt = Mm((doc_height_mm as f64 - page_margin_ver_mm as f64) - 15.0 * i as f64).into();
-                      draw_circle_with_pts(&&current_layer, center_x_pt, center_y_pt, radius_pt) ;
-
-                      let center_x_pt: Pt = Mm(col_2_x).into();
-                      let center_y_pt: Pt = Mm((doc_height_mm as f64 - page_margin_ver_mm as f64) - 15.0 * i as f64).into();
+                      let center_y_pt: Pt = Mm((doc_height_mm as f64 - page_margin_ver_mm as f64) - 15.0 * (i % display_entries_per_col) as f64).into();
                       draw_circle_with_pts(&&current_layer, center_x_pt, center_y_pt, radius_pt) ;
 
                       let tc_name :String = tc.name.to_owned();
@@ -525,20 +523,12 @@ fn construct_tile_color_summary_page(doc: &&PdfDocumentReference,
 
                       let fill_color = Color::Rgb(Rgb::new(255.0, 255.0,255.0, None));
                       current_layer.set_fill_color(fill_color);
-
-                      // current_layer.use_text(pos_str, 20.0, Mm(23.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 2.0) - 15.0 * i as f64), pane_font);
-                      current_layer.use_text(&pos_str, 20.0, Mm(col_0_x - 2.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 2.0) - 15.0 * i as f64), pane_font);
-                      current_layer.use_text(&pos_str, 20.0, Mm(col_1_x - 2.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 2.0) - 15.0 * i as f64), pane_font);
-                      current_layer.use_text(&pos_str, 20.0, Mm(col_2_x - 2.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 2.0) - 15.0 * i as f64), pane_font);
+                      current_layer.use_text(&pos_str, 20.0, Mm(col_pos_x[cur_col] as f64 - 2.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 2.0) - 15.0 * (i % display_entries_per_col)  as f64), pane_font);
 
                       let name_str: String = format!("{} - {} ", tc_name, bc.1) ;
                       let fill_color = Color::Rgb(Rgb::new(0.0, 0.0,0.0, None));
                       current_layer.set_fill_color(fill_color);
-
-                      // current_layer.use_text(name_str, 20.0, Mm(32.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 1.0) - 15.0 * i as f64), pane_font);
-                      current_layer.use_text(&name_str, 20.0, Mm(col_0_x + 7.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 1.0) - 15.0 * i as f64), pane_font);
-                      current_layer.use_text(&name_str, 20.0, Mm(col_1_x + 7.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 1.0) - 15.0 * i as f64), pane_font);
-                      current_layer.use_text(&name_str, 20.0, Mm(col_2_x + 7.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 1.0) - 15.0 * i as f64), pane_font);
+                      current_layer.use_text(&name_str, 20.0, Mm(col_pos_x[cur_col] as f64 + 7.0), Mm((doc_height_mm as f64 - page_margin_ver_mm as f64 - 1.0) - 15.0 * (i % display_entries_per_col) as f64), pane_font);
 
                       // once we have the colour we can break out of loop
                       break;
