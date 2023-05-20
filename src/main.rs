@@ -3,6 +3,7 @@ extern crate clap;
 mod kd_tree;
 mod pdf_util;
 mod modtile;
+mod json_export;
 
 use clap::{App, Arg};
 use euclid::{Point2D,Box2D};
@@ -13,6 +14,8 @@ use std::path::Path;
 use std::collections::HashMap;
 
 use kd_tree::{construct_kd_tree,query_nearest_neighbor};
+
+use crate::json_export::dump_rgb_json;
 
 fn main() {
     let matches = App::new("Image Play")
@@ -46,10 +49,10 @@ fn main() {
 
     // Grab the input image
     // TODO Get some proper error handling here or in function for missing image
-    let input_img = get_image(cfg.input).unwrap();
-    let (img_width, img_height) = input_img.dimensions();
-    let input_img_width = img_width as f64;
-    let input_img_height = img_height as f64;
+    let input_img: DynamicImage = get_image(cfg.input).unwrap();
+    let (img_width, img_height): (u32, u32) = input_img.dimensions();
+    let input_img_width: f64 = img_width as f64;
+    let input_img_height: f64 = img_height as f64;
 
     println!();
     println!("input image width: {}\ninput image height: {}", &input_img_width,&input_img_height );
@@ -58,7 +61,10 @@ fn main() {
     // determine the largest output box dimensions that will maintain the input image aspect ratio.
     // and resize the output image accordingly
     // strange behaviour noted so use with care.  Best to make sure op is some close ratio to input
-    let (output_width, output_height) =  get_max_box(input_img_width, input_img_height , cfg.output_width, cfg.output_height);
+    let (output_width , output_height): (f64, f64) =  get_max_box(input_img_width
+                                                               ,input_img_height 
+                                                                ,cfg.output_width
+                                                               ,cfg.output_height);
     println!();
     println!("output image width: {}\noutput image height: {}", &output_width,&output_height );
 
@@ -189,7 +195,7 @@ fn main() {
         for (_j, mut tile) in pane.iter_mut().enumerate(){
             // println!("Tile {}: {:?}", j+1, tile);
 
-            let avg_col = get_avg_col(&input_image_buffer, &tile.0);
+            let avg_col: Rgb<u8> = get_avg_col(&input_image_buffer, &tile.0);
 
             // get the closes color match
             let color_tup :Vec<u8> = query_nearest_neighbor(&[avg_col[0],avg_col[1],avg_col[2]], &kd_tree, 3, kd_tree.root()).value().clone();
@@ -198,9 +204,9 @@ fn main() {
             // keep running count of each tile color used
             *tile_color_count.entry(color_tup.clone()).or_insert(0) += 1;
 
-            let cm_red = color_tup[0] as u8;
-            let cm_yellow = color_tup[1] as u8;
-            let cm_green = color_tup[2] as u8;
+            let cm_red: u8 = color_tup[0] as u8;
+            let cm_yellow: u8 = color_tup[1] as u8;
+            let cm_green: u8 = color_tup[2] as u8;
 
             pane_colours.push((cm_red.clone(),cm_yellow.clone(),cm_green.clone()));
 
@@ -266,6 +272,13 @@ fn main() {
         };
      }
 
+     // save the input window data as a json file that can be used to create an svg
+     dump_rgb_json(&output_window, 
+        output_width_tile_count,
+        output_height_tile_count,
+        cfg.tiles_per_pane_width,
+        cfg.tiles_per_pane_height);
+
     // println!("Window Pane Colors {:#?}", window_pane_colors);
 
     // Create the output instructions doc
@@ -273,7 +286,7 @@ fn main() {
     // Changed from output window to input window to simplify PDF to image space cooridinates translation
     pdf_util::build_output_pdf(&save_path,&all_colors,tile_color_count_vec,&input_window);
 
-} // end main
+}
 
 // create the output image
 fn create_output_image(output_window: &Vec<Vec<(Box2D<i32, i32>, modtile::RGB)>>, output_width: f64, output_height: f64) -> DynamicImage {
@@ -342,6 +355,26 @@ fn get_avg_col(img: &RgbImage, pixel_box :&Box2D<i32,i32>  ) -> Rgb <u8>{
 
     rgb_tup
 }
+
+ 
+///  create_out_panes function creates a grid of rectangular panes, each defined by a pair of `(Box2D<i32, i32>, modtile::RGB)`
+///
+/// # Arguments
+/// `input_img_width` - width of the input image in pixels
+/// `input_img_height` - height of the input image in pixels
+/// `output_width_tile_count` - number of tiles the output image should be divided into along the width axis
+/// `output_height_tile_count` - number of tiles the output image should be divided into along the height axis
+/// `tiles_per_pane_width` - number of tiles in each pane along the width axis
+/// `tiles_per_pane_height` - number of tiles in each pane along the height axis
+/// 
+/// # Returns
+/// A 2D vector of `(Box2D<i32, i32>, modtile::RGB)` representing the rectangular panes. Each element of the 2D vector represents a row of panes. 
+/// 
+/// # Examples
+/// ```rust
+/// let panes = create_out_panes(10.0, 20.0, 2, 3, 2, 2);
+/// ```
+
 
 fn create_out_panes(input_img_width: f64,
                     input_img_height: f64,
@@ -470,3 +503,5 @@ fn get_max_box(ip_width: f64, ip_height: f64, op_width: f64, op_height: f64) -> 
     }
 
 }
+
+ 

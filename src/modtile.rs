@@ -48,7 +48,7 @@ pub fn load_configs(path_str: &str) -> Config {
      }
 }
 
-pub fn create_and_save_test_config(path_str: &str) -> Config {
+pub fn _create_and_save_test_config(path_str: &str) -> Config {
 
     let cfg = Config{
         tile_colors:"./tile_json/crayola_colors.json".to_owned(),
@@ -102,7 +102,7 @@ pub struct AllColors{
     pub colors: Vec<TileColor>
 }
 // Quick function to create populate and return an AllColors struct
-pub fn test_allcolors_struct()  -> AllColors {
+pub fn _test_allcolors_struct()  -> AllColors {
 
     let tc1 = TileColor {
         rgb: RGB(0,0,0),
