@@ -1,6 +1,6 @@
 
 use serde::{Deserialize, Serialize};
-use std::error::Error;
+use std::{error::Error, path::Path};
 use std::fs::File;
 use std::io::Write;
 
@@ -53,14 +53,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-
 /// Save the RGB values into an output_width_tile_count x output_height_tile_count array
 /// That can be read in by hack-svg or other program to construct input data
 pub fn dump_rgb_json(output_window: &Vec<Vec<(euclid::Box2D<i32, i32>, modtile::RGB)>>, 
             output_width_tile_count: usize, 
             output_height_tile_count: usize, 
             tiles_per_pane_width: usize, 
-            tiles_per_pane_height: usize) -> Result <(), Box<dyn Error>> 
+            tiles_per_pane_height: usize,
+            save_path: &Path) -> Result <(), Box<dyn Error>> 
 {
     println!("\n dump_rbg_json *********");
     println!(" output_width_tile_count {} ", output_width_tile_count);
@@ -88,16 +88,12 @@ pub fn dump_rgb_json(output_window: &Vec<Vec<(euclid::Box2D<i32, i32>, modtile::
         tiles: output_tiles,
     };
 
-    let mut file = File::create("carlcraig_post_it_may20_v2_op.json")?;
+    let file_path = save_path.with_extension("json");
+    let mut file = File::create(file_path)?;
     let serialized = serde_json::to_string(&config)?;
     file.write_all(serialized.as_bytes())?;
 
-    // let mut f = File::create("franky.json")?;
-    // let buf = serde_json::to_vec(&config)?;
-    // f.write_all(&buf[..])?;
-
     Ok(())
-
 }
 
 fn _dump_info(input_window: &Vec<Vec<(euclid::Box2D<i32, i32>, modtile::RGB)>>)

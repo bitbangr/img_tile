@@ -277,7 +277,8 @@ fn main() {
         output_width_tile_count,
         output_height_tile_count,
         cfg.tiles_per_pane_width,
-        cfg.tiles_per_pane_height);
+        cfg.tiles_per_pane_height,
+        save_path );
 
     // println!("Window Pane Colors {:#?}", window_pane_colors);
 
