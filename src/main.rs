@@ -1,11 +1,9 @@
-extern crate clap;
-
 mod kd_tree;
 mod pdf_util;
 mod modtile;
 mod json_export;
 
-use clap::{App, Arg};
+use clap::{Arg, Command};
 use euclid::{Point2D,Box2D};
 use image::{GenericImage, GenericImageView, RgbImage,Rgb};
 use image::DynamicImage;
@@ -18,31 +16,31 @@ use kd_tree::{construct_kd_tree,query_nearest_neighbor};
 use crate::json_export::dump_rgb_json;
 
 fn main() {
-    let matches = App::new("Image Play")
+    let matches = Command::new("Image Play")
         .version("0.1")
         .author("bitbangr <mgj000@hotmail.com>")
         .arg(
-            Arg::with_name("config")
-                .short("c")
+            Arg::new("config")
+                .short('c')
                 .long("config")
                 .value_name("FILE")
                 .help("config settings for tiling")
-                .takes_value(true)
                 .required(true),
         )
         .arg(
-            Arg::with_name("swatch")
-                .short("s")
+            Arg::new("swatch")
+                .short('s')
                 .long("swatch")
                 .value_name("SWATCH")
                 .help("Used to generate a color swatch pdf")
-                .takes_value(false)
                 .required(false),
         )
         .get_matches();
 
     // load all the config settings from JSON file
-    let cfg : modtile::Config = modtile::load_configs(matches.value_of("config").unwrap());
+    let cfg: modtile::Config = modtile::load_configs(
+        matches.get_one::<String>("config").expect("config argument missing")
+    );
 
     println!();
     println!("Successfully Loaded Config File -> {:?}", cfg);
@@ -150,15 +148,15 @@ fn main() {
     // }
 
     // if swatch flag present on command line then generate color swatch file
-    if matches.is_present("swatch"){
+    if matches.contains_id("swatch") {
         // generate a color swatch file
-            match pdf_util::generate_color_swatch(&all_colors){
-                Err(v) => panic!(
-                    "Could not create color swatch file: {}",
-                    v.to_string()
-                ),
-                Ok(r) => println!("generate_color_swatch() Success {:?}",r),              // return a bufReader
-            };
+        match pdf_util::generate_color_swatch(&all_colors) {
+            Err(v) => panic!(
+                "Could not create color swatch file: {}",
+                v.to_string()
+            ),
+            Ok(r) => println!("generate_color_swatch() Success {:?}", r),    // return a bufReader
+        };
     }
 
     let mut color_vec: Vec<Vec<u8>> = build_color_vec(&all_colors);  // Create a Vector Array of elements of type u8
